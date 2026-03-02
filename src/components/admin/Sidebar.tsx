@@ -17,7 +17,7 @@ export function Sidebar() {
     return (
         <aside className="w-64 bg-white border-r border-stone-200 flex flex-col">
             <div className="p-6 border-b border-stone-200">
-                <h1 className="text-xl font-serif text-stone-800 tracking-wider">Photo Delivery Admin</h1>
+                <h1 className="text-xl font-serif text-stone-800 tracking-wider">dography納品アプリ</h1>
             </div>
 
             <nav className="flex-1 p-4 space-y-2">
