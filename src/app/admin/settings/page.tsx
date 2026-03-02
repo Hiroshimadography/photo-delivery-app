@@ -219,7 +219,7 @@ export default function BrandSettings() {
                     ) : (
                         <div className="max-w-xl border border-stone-200 rounded-xl p-6 bg-stone-50 flex items-center justify-between">
                             <div className="flex-1 flex justify-center items-center bg-white p-4 rounded-lg border border-stone-100 mr-6 shadow-sm min-h-[100px]">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                { }
                                 <img src={logoPreviewUrl} alt="Logo Preview" className="max-h-16 max-w-full object-contain" />
                             </div>
                             <div className="flex flex-col gap-3">
@@ -246,7 +246,7 @@ export default function BrandSettings() {
                     <div className="max-w-xl border border-stone-200 rounded-xl overflow-hidden bg-[#FDFCFB]">
                         <header className="h-20 flex items-center justify-center border-b border-stone-200/50 bg-[#FDFCFB]/90 px-6">
                             {logoPreviewUrl ? (
-                                // eslint-disable-next-line @next/next/no-img-element
+                                 
                                 <img src={logoPreviewUrl} alt={brandName} className="max-h-8 max-w-full object-contain" />
                             ) : (
                                 <div className="text-sm tracking-[0.2em] text-stone-900 font-medium">

@@ -38,7 +38,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
 
     useEffect(() => {
         fetchProjectData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [folder_name]);
 
     const fetchProjectData = async () => {
@@ -211,7 +211,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                     className="z-10 w-full max-w-md bg-white/80 backdrop-blur-xl p-10 rounded-2xl shadow-2xl border border-white/50 text-center"
                 >
                     {settings.logo_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
+                         
                         <img src={settings.logo_url} alt={settings.brand_name} className="max-h-12 mx-auto mb-8 object-contain" />
                     ) : (
                         <h1 className="text-sm tracking-[0.3em] text-stone-400 mb-8 font-medium">{settings.brand_name}</h1>
@@ -257,7 +257,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
             <header className="sticky top-0 z-40 bg-[#FDFCFB]/90 backdrop-blur-md border-b border-stone-200/50">
                 <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                     {settings.logo_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
+                         
                         <img src={settings.logo_url} alt={settings.brand_name} className="max-h-8 object-contain" />
                     ) : (
                         <div className="text-sm tracking-[0.2em] text-stone-900 font-medium">
