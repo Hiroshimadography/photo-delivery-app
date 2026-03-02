@@ -190,9 +190,9 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
             setFiles([]); // アップロード待ちリストをクリア
             alert(`${completedCount} 枚のアップロードが完了しました`);
 
-        } catch (error: any) {
+        } catch (error) {
             console.error("Upload error:", error);
-            alert("アップロード中にエラーが発生しました: " + error.message);
+            alert("アップロード中にエラーが発生しました: " + (error instanceof Error ? error.message : String(error)));
         } finally {
             setIsUploading(false);
             setUploadProgress(0);
