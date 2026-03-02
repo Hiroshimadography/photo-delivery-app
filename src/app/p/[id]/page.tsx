@@ -45,7 +45,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
         setIsLoading(true);
         try {
             // 1. プロジェクト取得
-            let { data: pData, error: pError } = await supabase
+            const { data: pData, error: pError } = await supabase
                 .from('projects')
                 .select('*')
                 .eq('folder_name', folder_name)
