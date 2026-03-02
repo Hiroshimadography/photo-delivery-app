@@ -40,6 +40,11 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
     const [files, setFiles] = useState<File[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
+    const [origin, setOrigin] = useState("");
+
+    useEffect(() => {
+        setOrigin(window.location.origin);
+    }, []);
 
     // Initial Fetch
     useEffect(() => {
@@ -359,7 +364,7 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                                 <div className="flex gap-2">
                                     <input
                                         readOnly
-                                        value={`${window.location.origin}/p/${project.folder_name}`}
+                                        value={project ? `${origin || ""}/p/${project.folder_name}` : ""}
                                         className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-sm text-stone-700 font-mono"
                                     />
                                 </div>
@@ -427,8 +432,10 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                         <div className="mt-8 pt-4 border-t border-stone-100 flex flex-col gap-3">
                             <button
                                 onClick={() => {
-                                    navigator.clipboard.writeText(`${window.location.origin}/p/${project.folder_name}`);
-                                    alert('URLをコピーしました');
+                                    if (project) {
+                                        navigator.clipboard.writeText(`${origin}/p/${project.folder_name}`);
+                                        alert("URLをコピーしました");
+                                    }
                                 }}
                                 className="w-full flex justify-center items-center gap-2 rounded-lg border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors shadow-sm"
                             >
@@ -459,6 +466,6 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

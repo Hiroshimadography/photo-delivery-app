@@ -52,8 +52,6 @@ export default function BrandSettings() {
             if (logoFile) {
                 const fileExt = logoFile.name.split('.').pop();
                 const fileName = `logo-${Date.now()}.${fileExt}`;
-                const storagePath = `brand/${fileName}`;
-
                 // storageへのアップロード
                 const { error: uploadError } = await supabase.storage
                     .from('brand')
