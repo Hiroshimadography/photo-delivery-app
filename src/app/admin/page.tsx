@@ -95,44 +95,52 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-stone-50 border-b border-stone-200 text-stone-500 text-sm font-medium">
-                                <th className="px-6 py-4">プロジェクト名 / 送信先</th>
-                                <th className="px-6 py-4 text-center">ステータス</th>
-                                <th className="px-6 py-4">作成日</th>
-                                <th className="px-6 py-4">有効期限</th>
-                                <th className="px-6 py-4 text-center">閲覧 / DL</th>
-                                <th className="px-6 py-4 text-right">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-stone-100">
+                <div className="p-6">
+                    {filteredProjects.length === 0 ? (
+                        <div className="text-center text-stone-500 py-12">
+                            プロジェクトが見つかりませんでした。
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {filteredProjects.map((project) => (
-                                <motion.tr
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
                                     key={project.id}
-                                    className="hover:bg-stone-50 transition-colors group"
+                                    className="bg-white rounded-xl border border-stone-200 p-5 flex flex-col hover:shadow-md transition-shadow relative group"
                                 >
-                                    <td className="px-6 py-4">
-                                        <div className="font-medium text-stone-900 tracking-wide">{project.name}</div>
-                                        <div className="text-sm text-stone-500 font-mono mt-0.5">{project.folder_name}</div>
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
-                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${project.expires_at && new Date(project.expires_at) < new Date() ? 'bg-rose-50 text-rose-700 border border-rose-200/50' : 'bg-emerald-50 text-emerald-700 border border-emerald-200/50'
-                                            }`}>
+                                    {/* Status Badge */}
+                                    <div className="absolute top-5 right-5">
+                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${project.expires_at && new Date(project.expires_at) < new Date() ? 'bg-rose-50 text-rose-700 border border-rose-200/50' : 'bg-emerald-50 text-emerald-700 border border-emerald-200/50'}`}>
                                             {project.expires_at && new Date(project.expires_at) < new Date() ? '期限切れ' : '有効'}
                                         </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-stone-600 text-sm">
-                                        {new Date(project.created_at).toLocaleDateString('ja-JP')}
-                                    </td>
-                                    <td className="px-6 py-4 text-stone-600 text-sm">
-                                        {project.expires_at ? new Date(project.expires_at).toLocaleDateString('ja-JP') : '-'}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center justify-center gap-4 text-stone-500 text-sm">
+                                    </div>
+
+                                    {/* Header Info */}
+                                    <div className="pr-20 mb-4">
+                                        <h3 className="font-medium text-lg text-stone-900 tracking-wide mb-1 leading-tight line-clamp-2">
+                                            {project.name}
+                                        </h3>
+                                        <div className="text-sm text-stone-500 font-mono bg-stone-50 px-2 py-1 rounded inline-block">
+                                            {project.folder_name}
+                                        </div>
+                                    </div>
+
+                                    {/* Dates */}
+                                    <div className="grid grid-cols-2 gap-4 mb-4 text-sm text-stone-600 bg-stone-50 p-3 rounded-lg">
+                                        <div>
+                                            <span className="block text-stone-400 text-xs mb-0.5">作成日</span>
+                                            {new Date(project.created_at).toLocaleDateString('ja-JP')}
+                                        </div>
+                                        <div>
+                                            <span className="block text-stone-400 text-xs mb-0.5">有効期限</span>
+                                            {project.expires_at ? new Date(project.expires_at).toLocaleDateString('ja-JP') : '-'}
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-auto pt-4 border-t border-stone-100 flex items-center justify-between">
+                                        {/* Stats */}
+                                        <div className="flex items-center gap-4 text-stone-500 text-sm">
                                             <div className="flex items-center gap-1.5" title="閲覧回数">
                                                 <Eye size={16} className="text-stone-400" />
                                                 <span className="font-medium">{project.view_count}</span>
@@ -142,22 +150,27 @@ export default function AdminDashboard() {
                                                 <span className="font-medium">{project.download_count}</span>
                                             </div>
                                         </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <Link
-                                            href={`/admin/projects/${project.id}`}
-                                            className="text-stone-400 hover:text-stone-900 p-2 inline-flex items-center justify-center rounded-lg hover:bg-stone-200 transition-colors"
-                                        >
-                                            <MoreVertical size={18} />
-                                        </Link>
-                                    </td>
-                                </motion.tr>
+
+                                        {/* Actions */}
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                onClick={() => handleDelete(project.id, project.name)}
+                                                className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="削除"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                            <Link
+                                                href={`/admin/projects/${project.id}`}
+                                                className="p-2 text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
+                                                title="詳細・編集"
+                                            >
+                                                <MoreVertical size={18} />
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </motion.div>
                             ))}
-                        </tbody>
-                    </table>
-                    {filteredProjects.length === 0 && (
-                        <div className="p-16 text-center text-stone-500">
-                            プロジェクトが見つかりませんでした。
                         </div>
                     )}
                 </div>
