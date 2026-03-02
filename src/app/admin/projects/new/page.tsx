@@ -10,6 +10,7 @@ export default function NewProject() {
     const router = useRouter();
     const [name, setName] = useState("");
     const [password, setPassword] = useState("");
+    const [memo, setMemo] = useState("");
     const [expiryDays, setExpiryDays] = useState("30");
 
     const [isSaving, setIsSaving] = useState(false);
@@ -36,6 +37,7 @@ export default function NewProject() {
                         name: name,
                         folder_name: generatedFolderName,
                         password: password || null,
+                        memo: memo || null,
                         expires_at: expiresAt.toISOString(),
                         status: 'active',
                         view_count: 0,
@@ -93,6 +95,18 @@ export default function NewProject() {
                             onChange={(e) => setName(e.target.value)}
                             placeholder="例: 佐藤様 ウェディング"
                             className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-400 focus:bg-white transition-all"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-stone-700 mb-2">
+                            メモ <span className="text-stone-400 text-xs font-normal">（※お客様には表示されません）</span>
+                        </label>
+                        <textarea
+                            value={memo}
+                            onChange={(e) => setMemo(e.target.value)}
+                            placeholder="社内用メモなどを入力できます"
+                            className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-400 focus:bg-white transition-all min-h-[100px]"
                         />
                     </div>
                 </div>

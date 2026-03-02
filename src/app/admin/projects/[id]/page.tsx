@@ -12,6 +12,7 @@ type Project = {
     folder_name: string;
     status: "active" | "expired";
     password: string | null;
+    memo: string | null;
     created_at: string;
     expires_at: string | null;
 };
@@ -30,6 +31,9 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
     const [photos, setPhotos] = useState<Photo[]>([]);
     const [templateText, setTemplateText] = useState<string>("");
     const [isLoading, setIsLoading] = useState(true);
+
+    const [isEditingMemo, setIsEditingMemo] = useState(false);
+    const [memoInput, setMemoInput] = useState("");
 
     // Upload state
     const [isDragActive, setIsDragActive] = useState(false);
@@ -54,6 +58,7 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
 
             if (projectError) throw projectError;
             setProject(projectData);
+            setMemoInput(projectData.memo || "");
 
             // 紐づく写真一覧の取得
             const { data: photosData, error: photosError } = await supabase
@@ -82,6 +87,23 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
             console.error("Error fetching project data:", error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleSaveMemo = async () => {
+        if (!project) return;
+        try {
+            const { error } = await supabase
+                .from('projects')
+                .update({ memo: memoInput })
+                .eq('id', project.id);
+
+            if (error) throw error;
+            setProject({ ...project, memo: memoInput });
+            setIsEditingMemo(false);
+        } catch (error: any) {
+            console.error("Error saving memo:", error);
+            alert("メモの保存に失敗しました: " + error.message);
         }
     };
 
@@ -348,6 +370,52 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                                     {project.password ? project.password : <span className="text-stone-400 italic">なし</span>}
                                 </div>
                             </div>
+
+                            <div>
+                                <div className="flex justify-between items-center mb-1">
+                                    <p className="text-sm text-stone-500">メモ <span className="text-xs text-stone-400">（※お客様には非表示）</span></p>
+                                    {!isEditingMemo && (
+                                        <button
+                                            onClick={() => setIsEditingMemo(true)}
+                                            className="text-xs text-stone-500 hover:text-stone-900 underline"
+                                        >
+                                            編集
+                                        </button>
+                                    )}
+                                </div>
+                                {isEditingMemo ? (
+                                    <div className="space-y-2">
+                                        <textarea
+                                            value={memoInput}
+                                            onChange={(e) => setMemoInput(e.target.value)}
+                                            className="w-full bg-white border border-stone-200 rounded-lg px-3 py-2 text-sm text-stone-700 min-h-[80px] focus:outline-none focus:ring-1 focus:ring-stone-400"
+                                            placeholder="社内用メモなどを入力できます"
+                                        />
+                                        <div className="flex justify-end gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    setIsEditingMemo(false);
+                                                    setMemoInput(project.memo || "");
+                                                }}
+                                                className="text-xs px-3 py-1.5 text-stone-500 hover:bg-stone-100 rounded transition-colors"
+                                            >
+                                                キャンセル
+                                            </button>
+                                            <button
+                                                onClick={handleSaveMemo}
+                                                className="text-xs px-3 py-1.5 bg-stone-900 text-white hover:bg-stone-800 rounded shadow-sm transition-colors"
+                                            >
+                                                保存
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-sm text-stone-700 whitespace-pre-wrap min-h-[40px]">
+                                        {project.memo ? project.memo : <span className="text-stone-400 italic">なし</span>}
+                                    </div>
+                                )}
+                            </div>
+
                             <div>
                                 <p className="text-sm text-stone-500 mb-1">有効期限</p>
                                 <div className="text-stone-800 text-sm font-medium">

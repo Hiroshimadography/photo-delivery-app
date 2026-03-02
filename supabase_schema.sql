@@ -13,6 +13,7 @@ CREATE TABLE projects (
   name TEXT NOT NULL,
   folder_name TEXT UNIQUE,
   password TEXT,
+  memo TEXT,
   status TEXT DEFAULT 'active',
   expires_at TIMESTAMP WITH TIME ZONE,
   view_count INTEGER DEFAULT 0,
