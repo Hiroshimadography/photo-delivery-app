@@ -28,6 +28,7 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
     const { id } = use(params);
     const [project, setProject] = useState<Project | null>(null);
     const [photos, setPhotos] = useState<Photo[]>([]);
+    const [templateText, setTemplateText] = useState<string>("");
     const [isLoading, setIsLoading] = useState(true);
 
     // Upload state
@@ -63,6 +64,19 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
 
             if (photosError) throw photosError;
             setPhotos(photosData || []);
+
+            // カスタムテンプレートの取得
+            const { data: templateData, error: templateError } = await supabase
+                .from('settings')
+                .select('value')
+                .eq('key', 'delivery_template')
+                .single();
+
+            if (templateData && !templateError) {
+                setTemplateText(templateData.value);
+            } else {
+                setTemplateText(`{{customer_name}} 様\n\n専用ページ：{{url}}\nパスワード：{{password}}`);
+            }
 
         } catch (error) {
             console.error("Error fetching project data:", error);
@@ -356,11 +370,11 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
 
                             <button
                                 onClick={() => {
-                                    const text = `{{customer_name}} 様\n\n専用ページ：{{url}}\nパスワード：{{password}}`
-                                        .replace('{{customer_name}}', project.name)
-                                        .replace('{{url}}', `${window.location.origin}/p/${project.folder_name}`)
-                                        .replace('{{password}}', project.password || '設定なし')
-                                        .replace('{{expiry_date}}', project.expires_at ? new Date(project.expires_at).toLocaleDateString('ja-JP') : '');
+                                    const text = templateText
+                                        .replace(/{{customer_name}}/g, project.name)
+                                        .replace(/{{url}}/g, `${window.location.origin}/p/${project.folder_name}`)
+                                        .replace(/{{password}}/g, project.password || '設定なし')
+                                        .replace(/{{expiry_date}}/g, project.expires_at ? new Date(project.expires_at).toLocaleDateString('ja-JP') : '');
                                     navigator.clipboard.writeText(text);
                                     alert('案内文をコピーしました');
                                 }}
