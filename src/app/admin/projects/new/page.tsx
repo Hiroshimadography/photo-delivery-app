@@ -52,9 +52,9 @@ export default function NewProject() {
             if (data) {
                 router.push(`/admin/projects/${data.id}`);
             }
-        } catch (error: any) {
+        } catch (error) {
             console.error('Error creating project:', error);
-            alert("プロジェクトの作成に失敗しました: " + error.message);
+            alert("プロジェクトの作成に失敗しました: " + (error instanceof Error ? error.message : String(error)));
         } finally {
             setIsSaving(false);
         }
