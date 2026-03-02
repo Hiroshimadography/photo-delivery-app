@@ -101,9 +101,9 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
             if (error) throw error;
             setProject({ ...project, memo: memoInput });
             setIsEditingMemo(false);
-        } catch (error: any) {
+        } catch (error) {
             console.error("Error saving memo:", error);
-            alert("メモの保存に失敗しました: " + error.message);
+            alert("メモの保存に失敗しました: " + (error instanceof Error ? error.message : String(error)));
         }
     };
 
@@ -221,9 +221,9 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
             // ローカルステートを更新
             setPhotos(photos.filter(p => p.id !== photoId));
 
-        } catch (error: any) {
+        } catch (error) {
             console.error("Delete photo error:", error);
-            alert("写真の削除に失敗しました: " + error.message);
+            alert("写真の削除に失敗しました: " + (error instanceof Error ? error.message : String(error)));
         }
     };
 
