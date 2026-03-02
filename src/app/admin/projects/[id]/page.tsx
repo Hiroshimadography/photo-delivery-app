@@ -40,11 +40,6 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
     const [files, setFiles] = useState<File[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
-    const [origin, setOrigin] = useState("");
-
-    useEffect(() => {
-        setOrigin(window.location.origin);
-    }, []);
 
     // Initial Fetch
     useEffect(() => {
@@ -106,9 +101,9 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
             if (error) throw error;
             setProject({ ...project, memo: memoInput });
             setIsEditingMemo(false);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error saving memo:", error);
-            alert("メモの保存に失敗しました: " + (error instanceof Error ? error.message : String(error)));
+            alert("メモの保存に失敗しました: " + error.message);
         }
     };
 
@@ -195,9 +190,9 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
             setFiles([]); // アップロード待ちリストをクリア
             alert(`${completedCount} 枚のアップロードが完了しました`);
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Upload error:", error);
-            alert("アップロード中にエラーが発生しました: " + (error instanceof Error ? error.message : String(error)));
+            alert("アップロード中にエラーが発生しました: " + error.message);
         } finally {
             setIsUploading(false);
             setUploadProgress(0);
@@ -226,9 +221,9 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
             // ローカルステートを更新
             setPhotos(photos.filter(p => p.id !== photoId));
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Delete photo error:", error);
-            alert("写真の削除に失敗しました: " + (error instanceof Error ? error.message : String(error)));
+            alert("写真の削除に失敗しました: " + error.message);
         }
     };
 
@@ -364,7 +359,7 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                                 <div className="flex gap-2">
                                     <input
                                         readOnly
-                                        value={project ? `${origin || ""}/p/${project.folder_name}` : ""}
+                                        value={`${window.location.origin}/p/${project.folder_name}`}
                                         className="w-full bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-sm text-stone-700 font-mono"
                                     />
                                 </div>
@@ -432,10 +427,8 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                         <div className="mt-8 pt-4 border-t border-stone-100 flex flex-col gap-3">
                             <button
                                 onClick={() => {
-                                    if (project) {
-                                        navigator.clipboard.writeText(`${origin}/p/${project.folder_name}`);
-                                        alert("URLをコピーしました");
-                                    }
+                                    navigator.clipboard.writeText(`${window.location.origin}/p/${project.folder_name}`);
+                                    alert('URLをコピーしました');
                                 }}
                                 className="w-full flex justify-center items-center gap-2 rounded-lg border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors shadow-sm"
                             >
@@ -466,6 +459,6 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                     </div>
                 </div>
             </div>
-        </div >
+        </div>
     );
 }
