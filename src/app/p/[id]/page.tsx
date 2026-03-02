@@ -38,7 +38,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
 
     useEffect(() => {
         fetchProjectData();
-         
+
     }, [folder_name]);
 
     const fetchProjectData = async () => {
@@ -211,7 +211,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                     className="z-10 w-full max-w-md bg-white/80 backdrop-blur-xl p-10 rounded-2xl shadow-2xl border border-white/50 text-center"
                 >
                     {settings.logo_url ? (
-                         
+
                         <img src={settings.logo_url} alt={settings.brand_name} className="max-h-12 mx-auto mb-8 object-contain" />
                     ) : (
                         <h1 className="text-sm tracking-[0.3em] text-stone-400 mb-8 font-medium">{settings.brand_name}</h1>
@@ -257,7 +257,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
             <header className="sticky top-0 z-40 bg-[#FDFCFB]/90 backdrop-blur-md border-b border-stone-200/50">
                 <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                     {settings.logo_url ? (
-                         
+
                         <img src={settings.logo_url} alt={settings.brand_name} className="max-h-8 object-contain" />
                     ) : (
                         <div className="text-sm tracking-[0.2em] text-stone-900 font-medium">
@@ -348,8 +348,43 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                 </div>
             </main>
 
+            {/* Bottom Action Bar */}
+            <div className="max-w-7xl mx-auto px-6 mb-20">
+                <div className="bg-white shadow-lg shadow-stone-200/20 border border-stone-200/60 rounded-xl p-4 md:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-xl">
+                    <div className="text-stone-600 text-sm font-medium w-full sm:w-auto text-center sm:text-left">
+                        {selectedPhotos.size > 0 ? `${selectedPhotos.size}枚の写真を選択中` : '写真を選択してダウンロード可能です'}
+                    </div>
+
+                    <div className="flex w-full sm:w-auto gap-3">
+                        <button
+                            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                            className="hidden sm:flex items-center justify-center px-4 py-3 border border-stone-200 text-stone-500 hover:text-stone-900 hover:bg-stone-50 rounded-lg transition-colors"
+                            title="ページトップへ"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
+                        </button>
+                        <button
+                            onClick={handleDownloadSelected}
+                            disabled={selectedPhotos.size === 0 || isDownloading}
+                            className="flex-1 sm:flex-none px-6 py-3 border border-stone-300 text-stone-700 bg-white hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                        >
+                            <Download size={16} className={isDownloading ? "animate-bounce" : ""} />
+                            {isDownloading ? "準備中..." : `選択保存 (${selectedPhotos.size})`}
+                        </button>
+                        <button
+                            onClick={handleDownloadAll}
+                            disabled={isDownloading}
+                            className="flex-1 sm:flex-none px-6 py-3 bg-stone-900 hover:bg-stone-800 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-md"
+                        >
+                            <Download size={16} className={isDownloading ? "animate-bounce" : ""} />
+                            {isDownloading ? "準備中..." : "一括保存"}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             {/* Footer */}
-            <footer className="py-12 text-center border-t border-stone-200 mt-20">
+            <footer className="py-12 text-center border-t border-stone-200">
                 <p className="text-xs tracking-widest text-stone-400 uppercase">
                     © {new Date().getFullYear()} Lumière Photography
                 </p>

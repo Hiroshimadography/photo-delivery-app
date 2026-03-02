@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FolderPlus, Search, MoreVertical, Eye, Download, Link as LinkIcon, Trash2, Plus } from "lucide-react";
+import { FolderPlus, Search, Eye, Download, Link as LinkIcon, Trash2, Plus, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 
@@ -102,75 +103,78 @@ export default function AdminDashboard() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {filteredProjects.map((project) => (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    key={project.id}
-                                    className="bg-white rounded-xl border border-stone-200 p-5 flex flex-col hover:shadow-md transition-shadow relative group"
-                                >
-                                    {/* Status Badge */}
-                                    <div className="absolute top-5 right-5">
-                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${project.expires_at && new Date(project.expires_at) < new Date() ? 'bg-rose-50 text-rose-700 border border-rose-200/50' : 'bg-emerald-50 text-emerald-700 border border-emerald-200/50'}`}>
-                                            {project.expires_at && new Date(project.expires_at) < new Date() ? '期限切れ' : '有効'}
-                                        </span>
-                                    </div>
-
-                                    {/* Header Info */}
-                                    <div className="pr-20 mb-4">
-                                        <h3 className="font-medium text-lg text-stone-900 tracking-wide mb-1 leading-tight line-clamp-2">
-                                            {project.name}
-                                        </h3>
-                                        <div className="text-sm text-stone-500 font-mono bg-stone-50 px-2 py-1 rounded inline-block">
-                                            {project.folder_name}
+                            {filteredProjects.map((project) => {
+                                const router = useRouter();
+                                return (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        key={project.id}
+                                        onClick={() => router.push(`/admin/projects/${project.id}`)}
+                                        className="bg-white rounded-xl border border-stone-200 p-5 flex flex-col hover:shadow-lg hover:border-stone-300 transition-all relative group cursor-pointer"
+                                    >
+                                        {/* Status Badge */}
+                                        <div className="absolute top-5 right-5">
+                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${project.expires_at && new Date(project.expires_at) < new Date() ? 'bg-rose-50 text-rose-700 border border-rose-200/50' : 'bg-emerald-50 text-emerald-700 border border-emerald-200/50'}`}>
+                                                {project.expires_at && new Date(project.expires_at) < new Date() ? '期限切れ' : '有効'}
+                                            </span>
                                         </div>
-                                    </div>
 
-                                    {/* Dates */}
-                                    <div className="grid grid-cols-2 gap-4 mb-4 text-sm text-stone-600 bg-stone-50 p-3 rounded-lg">
-                                        <div>
-                                            <span className="block text-stone-400 text-xs mb-0.5">作成日</span>
-                                            {new Date(project.created_at).toLocaleDateString('ja-JP')}
-                                        </div>
-                                        <div>
-                                            <span className="block text-stone-400 text-xs mb-0.5">有効期限</span>
-                                            {project.expires_at ? new Date(project.expires_at).toLocaleDateString('ja-JP') : '-'}
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-auto pt-4 border-t border-stone-100 flex items-center justify-between">
-                                        {/* Stats */}
-                                        <div className="flex items-center gap-4 text-stone-500 text-sm">
-                                            <div className="flex items-center gap-1.5" title="閲覧回数">
-                                                <Eye size={16} className="text-stone-400" />
-                                                <span className="font-medium">{project.view_count}</span>
-                                            </div>
-                                            <div className="flex items-center gap-1.5" title="ダウンロード回数">
-                                                <Download size={16} className="text-stone-400" />
-                                                <span className="font-medium">{project.download_count}</span>
+                                        {/* Header Info */}
+                                        <div className="pr-20 mb-4">
+                                            <h3 className="font-medium text-lg text-stone-900 tracking-wide mb-1 leading-tight line-clamp-2 group-hover:text-stone-700 transition-colors">
+                                                {project.name}
+                                            </h3>
+                                            <div className="text-sm text-stone-500 font-mono bg-stone-50 px-2 py-1 rounded inline-block">
+                                                {project.folder_name}
                                             </div>
                                         </div>
 
-                                        {/* Actions */}
-                                        <div className="flex items-center gap-1">
-                                            <button
-                                                onClick={() => handleDelete(project.id, project.name)}
-                                                className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                                title="削除"
-                                            >
-                                                <Trash2 size={18} />
-                                            </button>
-                                            <Link
-                                                href={`/admin/projects/${project.id}`}
-                                                className="p-2 text-stone-400 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
-                                                title="詳細・編集"
-                                            >
-                                                <MoreVertical size={18} />
-                                            </Link>
+                                        {/* Dates */}
+                                        <div className="grid grid-cols-2 gap-4 mb-4 text-sm text-stone-600 bg-stone-50 p-3 rounded-lg group-hover:bg-stone-100/50 transition-colors">
+                                            <div>
+                                                <span className="block text-stone-400 text-xs mb-0.5">作成日</span>
+                                                {new Date(project.created_at).toLocaleDateString('ja-JP')}
+                                            </div>
+                                            <div>
+                                                <span className="block text-stone-400 text-xs mb-0.5">有効期限</span>
+                                                {project.expires_at ? new Date(project.expires_at).toLocaleDateString('ja-JP') : '-'}
+                                            </div>
                                         </div>
-                                    </div>
-                                </motion.div>
-                            ))}
+
+                                        <div className="mt-auto pt-4 border-t border-stone-100 flex items-center justify-between">
+                                            {/* Stats */}
+                                            <div className="flex items-center gap-4 text-stone-500 text-sm">
+                                                <div className="flex items-center gap-1.5" title="閲覧回数">
+                                                    <Eye size={16} className="text-stone-400" />
+                                                    <span className="font-medium">{project.view_count}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5" title="ダウンロード回数">
+                                                    <Download size={16} className="text-stone-400" />
+                                                    <span className="font-medium">{project.download_count}</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDelete(project.id, project.name);
+                                                    }}
+                                                    className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors z-10"
+                                                    title="削除"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                                <div className="p-2 text-stone-300 group-hover:text-stone-900 transition-colors">
+                                                    <ChevronRight size={18} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
