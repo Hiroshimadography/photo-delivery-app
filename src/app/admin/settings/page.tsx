@@ -69,7 +69,7 @@ export default function BrandSettings() {
                 finalLogoUrl = publicUrlData.publicUrl;
             }
 
-            const upsertData: Record<string, any> = {
+            const upsertData: { brand_name: string; logo_url: string | null; updated_at: string; id?: string } = {
                 brand_name: brandName,
                 logo_url: finalLogoUrl,
                 updated_at: new Date().toISOString()
