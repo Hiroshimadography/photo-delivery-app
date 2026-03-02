@@ -3,24 +3,32 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lock } from "lucide-react";
+import { createClient } from "@/utils/supabase/client";
 
 export default function AdminLogin() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState("");
     const router = useRouter();
+    const supabase = createClient();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        // TODO: Supabase auth
-        // const { error } = await supabase.auth.signInWithPassword({ email, password });
+        setErrorMsg("");
 
-        // Mock login to proceed
-        setTimeout(() => {
-            setLoading(false);
-            router.push("/admin");
-        }, 1000);
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+        setLoading(false);
+
+        if (error) {
+            setErrorMsg("メールアドレスまたはパスワードが間違っています。");
+            return;
+        }
+
+        router.push("/admin");
+        router.refresh(); // Refresh the router to re-evaluate layout and middleware
     };
 
     return (
@@ -35,6 +43,11 @@ export default function AdminLogin() {
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-6">
+                    {errorMsg && (
+                        <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm text-center">
+                            {errorMsg}
+                        </div>
+                    )}
                     <div>
                         <label className="block text-sm font-medium text-stone-700 mb-1">Email</label>
                         <input
