@@ -66,15 +66,15 @@ export default function AdminDashboard() {
     );
 
     return (
-        <div className="max-w-6xl mx-auto space-y-8">
-            <div className="flex justify-between items-end">
+        <div className="max-w-6xl mx-auto space-y-6 md:space-y-8">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
                 <div>
-                    <h2 className="text-3xl font-serif text-stone-800 tracking-wide mb-2">Projects</h2>
-                    <p className="text-stone-500">お客様の納品プロジェクト管理</p>
+                    <h2 className="text-2xl md:text-3xl font-serif text-stone-800 tracking-wide mb-1 md:mb-2">Projects</h2>
+                    <p className="text-sm md:text-base text-stone-500">お客様の納品プロジェクト管理</p>
                 </div>
                 <Link
                     href="/admin/projects/new"
-                    className="bg-stone-900 hover:bg-stone-800 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors font-medium shadow-md shadow-stone-200/50"
+                    className="bg-stone-900 hover:bg-stone-800 text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2 transition-colors font-medium shadow-md shadow-stone-200/50 w-full md:w-auto"
                 >
                     <Plus size={20} />
                     <span>新規作成</span>
