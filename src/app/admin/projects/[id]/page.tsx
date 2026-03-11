@@ -199,20 +199,49 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                 const uniqueFilename = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${ext}`;
                 const storagePath = `${project.folder_name}/${uniqueFilename}`;
 
-                // バックエンドAPI経由でセキュアにアップロードを実行
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('projectId', project.id);
-                formData.append('storagePath', storagePath);
-
-                const response = await fetch('/api/admin/upload', {
+                // 1. バックエンドAPI経由でSigned Upload URLを取得
+                const initRes = await fetch('/api/admin/upload/init', {
                     method: 'POST',
-                    body: formData,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ storagePath }),
                 });
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'Upload failed');
+                if (!initRes.ok) {
+                    const errText = await initRes.text();
+                    throw new Error(`アップロードの準備に失敗しました: ${errText}`);
+                }
+                const initResult = await initRes.json();
+                
+                if (!initResult.data || !initResult.data.token) {
+                     throw new Error('Signed URLの取得に失敗しました');
+                }
+                
+                const uploadToken = initResult.data.token;
+
+                // 2. クライアントからSupabaseへ直接アップロード（Vercelの4.5MB制限回避）
+                const { error: uploadError } = await supabase.storage
+                    .from('photos')
+                    .uploadToSignedUrl(storagePath, uploadToken, file);
+                
+                if (uploadError) {
+                    throw new Error(`直接アップロード失敗: ${uploadError.message}`);
+                }
+
+                // 3. データベースへの保存処理 (Finalize)
+                const finalizeRes = await fetch('/api/admin/upload/finalize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ projectId: project.id, storagePath }),
+                });
+
+                if (!finalizeRes.ok) {
+                    const errText = await finalizeRes.text();
+                    try {
+                        const errorData = JSON.parse(errText);
+                        throw new Error(errorData.error || 'Upload finalization failed');
+                    } catch (e) {
+                         throw new Error(`Upload finalization failed: ${errText}`);
+                    }
                 }
 
                 completedCount++;
