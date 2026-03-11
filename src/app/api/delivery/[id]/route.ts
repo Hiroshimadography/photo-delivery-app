@@ -23,6 +23,13 @@ export async function GET(
             return NextResponse.json({ success: false, message: 'Project not found' }, { status: 404 });
         }
 
+        // URLパラメータのみでアクセス可能な情報として、ブランド設定も返す
+        const { data: brandSettings } = await supabaseAdmin
+            .from('brand_settings')
+            .select('*')
+            .limit(1)
+            .single();
+
         return NextResponse.json({
             success: true,
             project: {
@@ -31,7 +38,11 @@ export async function GET(
                 hasPassword: !!project.password,
                 download_count: project.download_count,
                 max_downloads: project.max_downloads
-            }
+            },
+            settings: brandSettings ? {
+                brand_name: brandSettings.brand_name,
+                logo_url: brandSettings.logo_url
+            } : null
         });
     } catch (e) {
          return NextResponse.json({ success: false, message: 'Server error' }, { status: 500 });
@@ -59,6 +70,12 @@ export async function POST(
         if (project.password && project.password !== password) {
             return NextResponse.json({ success: false, message: 'Invalid password' }, { status: 401 });
         }
+
+        const { data: brandSettings } = await supabaseAdmin
+            .from('brand_settings')
+            .select('*')
+            .limit(1)
+            .single();
 
         const { data: photos, error: photosError } = await supabaseAdmin
             .from('photos')
@@ -99,6 +116,10 @@ export async function POST(
                 download_count: project.download_count,
                 max_downloads: project.max_downloads
             },
+            settings: brandSettings ? {
+                brand_name: brandSettings.brand_name,
+                logo_url: brandSettings.logo_url
+            } : null,
             photos: photosWithUrls.filter(p => p.url)
         });
 

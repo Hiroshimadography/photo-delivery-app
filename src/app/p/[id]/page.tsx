@@ -72,17 +72,11 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                 }
             }
 
-            // 3. ブランド設定取得 (Public RLSなので直接取得)
-            const { data: sData, error: sError } = await supabase
-                .from('brand_settings')
-                .select('*')
-                .limit(1)
-                .single();
-
-            if (!sError && sData) {
+            // 3. ブランド設定のパブリック取得は削除し、APIから取得したsettingsを使う
+            if (data.settings) {
                 setSettings({
-                    brand_name: sData.brand_name || "Lumière Photography",
-                    logo_url: sData.logo_url
+                    brand_name: data.settings.brand_name || "Lumière Photography",
+                    logo_url: data.settings.logo_url
                 });
             }
 
@@ -181,19 +175,26 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
             const selectedArray = Array.from(selectedPhotos);
             let count = 0;
 
-            // 直列（1件ずつ）または少しずつのチャンクでフェッチしてメモリを節約
-            for (const photoId of selectedArray) {
-                const photo = photos.find(p => p.id === photoId);
-                if (photo) {
-                    try {
-                        const blob = await fetchImageAsBlob(photo.url);
-                        zip.file(`photo-${count + 1}.jpg`, blob);
-                        count++;
-                        setDownloadProgress(Math.round((count / selectedArray.length) * 100));
-                    } catch (e) {
-                         console.error("Failed to download photo:", photo.url, e);
+            // 5枚ずつ並行してフェッチし、速度とメモリのバランスを取る
+            const batchSize = 5;
+            for (let i = 0; i < selectedArray.length; i += batchSize) {
+                const chunk = selectedArray.slice(i, i + batchSize);
+                
+                const promises = chunk.map(async (photoId) => {
+                    const photo = photos.find(p => p.id === photoId);
+                    if (photo) {
+                        try {
+                            const blob = await fetchImageAsBlob(photo.url);
+                            zip.file(`photo-${selectedArray.indexOf(photoId) + 1}.jpg`, blob);
+                        } catch (e) {
+                             console.error("Failed to download photo:", photo.url, e);
+                        }
                     }
-                }
+                });
+
+                await Promise.all(promises);
+                count += chunk.length;
+                setDownloadProgress(Math.round((count / selectedArray.length) * 100));
             }
 
             setDownloadProgress(100);
@@ -221,16 +222,24 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
             const zip = new JSZip();
 
             let count = 0;
-            // 直列フェッチに変更（並行フェッチだと大量の大きな画像でメモリパンクしてエラーになるため）
-            for (let i = 0; i < photos.length; i++) {
-                try {
-                    const blob = await fetchImageAsBlob(photos[i].url);
-                    zip.file(`img_${String(i + 1).padStart(3, '0')}.jpg`, blob);
-                    count++;
-                    setDownloadProgress(Math.round((count / photos.length) * 100));
-                } catch (e) {
-                    console.error("Failed to download photo:", photos[i].url, e);
-                }
+            // 5件ずつチャンクでフェッチして速度とメモリ消費のバランスを取る
+            const batchSize = 5;
+            for (let i = 0; i < photos.length; i += batchSize) {
+                const chunk = photos.slice(i, i + batchSize);
+                
+                const promises = chunk.map(async (photo, index) => {
+                    const globalIndex = i + index;
+                    try {
+                        const blob = await fetchImageAsBlob(photo.url);
+                        zip.file(`img_${String(globalIndex + 1).padStart(3, '0')}.jpg`, blob);
+                    } catch (e) {
+                        console.error("Failed to download photo:", photo.url, e);
+                    }
+                });
+
+                await Promise.all(promises);
+                count += chunk.length;
+                setDownloadProgress(Math.round((count / photos.length) * 100));
             }
 
             setDownloadProgress(100);
@@ -341,7 +350,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                         >
                             <div className="bg-white p-10 rounded-2xl shadow-2xl border border-stone-200 flex flex-col items-center text-center max-w-sm w-full mx-4">
                                 <div className="w-16 h-16 border-4 border-stone-200 border-t-stone-800 rounded-full animate-spin mb-8" />
-                                <h3 className="text-xl font-medium text-stone-800 mb-2 font-serif tracking-wider">ダウンロード準備中</h3>
+                                <h3 className="text-xl font-medium text-stone-800 mb-2 font-serif tracking-wider">ダウンロード中</h3>
                                 <p className="text-stone-500 mb-6 text-sm">写真のデータをまとめています...</p>
                                 
                                 <div className="w-full bg-stone-100 rounded-full h-2.5 mb-2 overflow-hidden">
