@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, use, useEffect } from "react";
-import { ArrowLeft, UploadCloud, Image as ImageIcon, Trash2, Link as LinkIcon, Copy } from "lucide-react";
+import { useState, useCallback, use, useEffect, useRef } from "react";
+import { ArrowLeft, UploadCloud, Image as ImageIcon, Trash2, Link as LinkIcon, Copy, Pause, Play } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
@@ -52,7 +52,8 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
     const [isDragActive, setIsDragActive] = useState(false);
     const [files, setFiles] = useState<File[]>([]);
     const [isUploading, setIsUploading] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState(0);
+    const [isPaused, setIsPaused] = useState(false);
+    const isPausedRef = useRef(false);
     const [origin, setOrigin] = useState("");
 
     useEffect(() => {
@@ -188,78 +189,81 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
         if (!project || files.length === 0) return;
 
         setIsUploading(true);
-        setUploadProgress(0);
-        let completedCount = 0;
+        setIsPaused(false);
+        isPausedRef.current = false;
+        
+        const queue = [...files];
+        const concurrency = 4; // 同時アップロード数
 
         try {
-            for (const file of files) {
-                // ファイル名から拡張子を抽出
-                const ext = file.name.split('.').pop() || 'jpg';
-                // 一意のファイル名を生成 (タイムスタンプ + ランダム文字列)
-                const uniqueFilename = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${ext}`;
-                const storagePath = `${project.folder_name}/${uniqueFilename}`;
+            const processQueue = async () => {
+                while (queue.length > 0) {
+                    if (isPausedRef.current) break;
 
-                // 1. バックエンドAPI経由でSigned Upload URLを取得
-                const initRes = await fetch('/api/admin/upload/init', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ storagePath }),
-                });
+                    const file = queue.shift();
+                    if (!file) continue;
 
-                if (!initRes.ok) {
-                    const errText = await initRes.text();
-                    throw new Error(`アップロードの準備に失敗しました: ${errText}`);
-                }
-                const initResult = await initRes.json();
-                
-                if (!initResult.data || !initResult.data.token) {
-                     throw new Error('Signed URLの取得に失敗しました');
-                }
-                
-                const uploadToken = initResult.data.token;
+                    const ext = file.name.split('.').pop() || 'jpg';
+                    const uniqueFilename = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${ext}`;
+                    const storagePath = `${project.folder_name}/${uniqueFilename}`;
 
-                // 2. クライアントからSupabaseへ直接アップロード（Vercelの4.5MB制限回避）
-                const { error: uploadError } = await supabase.storage
-                    .from('photos')
-                    .uploadToSignedUrl(storagePath, uploadToken, file);
-                
-                if (uploadError) {
-                    throw new Error(`直接アップロード失敗: ${uploadError.message}`);
-                }
-
-                // 3. データベースへの保存処理 (Finalize)
-                const finalizeRes = await fetch('/api/admin/upload/finalize', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ projectId: project.id, storagePath }),
-                });
-
-                if (!finalizeRes.ok) {
-                    const errText = await finalizeRes.text();
                     try {
-                        const errorData = JSON.parse(errText);
-                        throw new Error(errorData.error || 'Upload finalization failed');
-                    } catch (e) {
-                         throw new Error(`Upload finalization failed: ${errText}`);
+                        const initRes = await fetch('/api/admin/upload/init', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ storagePath }),
+                        });
+                        if (!initRes.ok) throw new Error('Init API failed');
+                        const initResult = await initRes.json();
+                        const token = initResult.data?.token;
+                        if (!token) throw new Error('No Signed URL Token');
+
+                        const { error: uploadError } = await supabase.storage
+                            .from('photos')
+                            .uploadToSignedUrl(storagePath, token, file);
+                        if (uploadError) throw new Error(uploadError.message);
+
+                        const finRes = await fetch('/api/admin/upload/finalize', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ projectId: project.id, storagePath }),
+                        });
+                        if (!finRes.ok) throw new Error('Finalize API failed');
+
+                        // 成功したファイルからUIリストを減らす
+                        setFiles(prev => prev.filter(f => f !== file));
+                    } catch (error) {
+                        console.error("Upload error for file", file.name, error);
                     }
                 }
+            };
 
-                completedCount++;
-                setUploadProgress(Math.round((completedCount / files.length) * 100));
+            const workers = [];
+            for (let i = 0; i < concurrency; i++) {
+                workers.push(processQueue());
             }
 
-            // 最後にプロジェクトのステータス情報と再取得
+            await Promise.all(workers);
             await fetchProjectData();
-            setFiles([]); // アップロード待ちリストをクリア
-            alert(`${completedCount} 枚のアップロードが完了しました`);
 
+            if (!isPausedRef.current) {
+                if (files.length === 0 || queue.length === 0) {
+                     alert("アップロード処理が完了いたしました。");
+                }
+            }
         } catch (error) {
-            console.error("Upload error:", error);
-            alert("アップロード中にエラーが発生しました: " + (error instanceof Error ? error.message : String(error)));
+            console.error("Upload Error:", error);
+            alert("アップロード中にエラーが発生しました。");
         } finally {
-            setIsUploading(false);
-            setUploadProgress(0);
+            if (!isPausedRef.current) {
+                setIsUploading(false);
+            }
         }
+    };
+
+    const handlePause = () => {
+        setIsPaused(true);
+        isPausedRef.current = true;
     };
 
     const handleDeletePhoto = async (photoId: string, storagePath: string) => {
@@ -287,6 +291,38 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
         } catch (error) {
             console.error("Delete photo error:", error);
             alert("写真の削除に失敗しました: " + (error instanceof Error ? error.message : String(error)));
+        }
+    };
+
+    const handleDeleteAllPhotos = async () => {
+        if (!project || photos.length === 0) return;
+        if (!window.confirm("アップロード済みのすべての写真を削除してもよろしいですか？\n※この操作は元に戻せません。")) return;
+
+        setIsLoading(true);
+        try {
+            const storagePaths = photos.map(p => p.storage_path);
+            const batchSize = 100;
+            for (let i = 0; i < storagePaths.length; i += batchSize) {
+                const batch = storagePaths.slice(i, i + batchSize);
+                const { error: storageError } = await supabase.storage.from('photos').remove(batch);
+                if (storageError) throw storageError;
+            }
+
+            const { error: dbError } = await supabase
+                .from('photos')
+                .delete()
+                .eq('project_id', project.id);
+
+            if (dbError) throw dbError;
+
+            setPhotos([]);
+            alert("すべての写真を削除しました。");
+        } catch (error) {
+            console.error("Delete all photos error:", error);
+            alert("一括削除に失敗しました: " + (error instanceof Error ? error.message : String(error)));
+        } finally {
+            fetchProjectData();
+            setIsLoading(false);
         }
     };
 
@@ -339,13 +375,25 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                             <div className="mt-8">
                                 <div className="flex justify-between items-center mb-4">
                                     <h4 className="font-medium text-stone-800">アップロード待機中 ({files.length}枚)</h4>
-                                    <button
-                                        onClick={handleUploadAll}
-                                        disabled={isUploading}
-                                        className="bg-stone-900 hover:bg-stone-800 text-white px-4 py-2 rounded-lg text-sm transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {isUploading ? `アップロード中... ${uploadProgress}%` : "すべてアップロード"}
-                                    </button>
+                                    <div className="flex gap-2">
+                                        {isUploading && !isPaused && (
+                                            <button
+                                                onClick={handlePause}
+                                                className="flex items-center gap-1 bg-stone-500 hover:bg-stone-600 text-white px-4 py-2 rounded-lg text-sm transition-colors font-medium border border-transparent shadow-sm"
+                                            >
+                                                <Pause size={16} />
+                                                一時停止
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={handleUploadAll}
+                                            disabled={isUploading && !isPaused}
+                                            className="flex items-center gap-1 bg-stone-900 hover:bg-stone-800 text-white px-4 py-2 rounded-lg text-sm transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                                        >
+                                            {isPaused ? <Play size={16} /> : <UploadCloud size={16} />}
+                                            {isUploading && !isPaused ? `アップロード中...` : isPaused ? "再開" : "すべてアップロード"}
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                     <AnimatePresence>
@@ -407,6 +455,18 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                                         </motion.div>
                                     ))}
                                 </AnimatePresence>
+                            </div>
+                        )}
+
+                        {photos.length > 0 && (
+                            <div className="mt-8 pt-4 border-t border-stone-100 flex justify-end">
+                                <button
+                                    onClick={handleDeleteAllPhotos}
+                                    className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                >
+                                    <Trash2 size={16} />
+                                    <span>アップロード済み写真をすべて一括削除</span>
+                                </button>
                             </div>
                         )}
                     </div>
