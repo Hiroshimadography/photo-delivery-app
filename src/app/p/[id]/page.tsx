@@ -132,6 +132,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
     };
 
     const [isDownloading, setIsDownloading] = useState(false);
+    const [downloadProgress, setDownloadProgress] = useState(0);
 
     // ユーティリティ: URLからBlobを取得する
     const fetchImageAsBlob = async (url: string) => {
@@ -168,6 +169,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
     const handleDownloadSelected = async () => {
         if (selectedPhotos.size === 0) return;
         setIsDownloading(true);
+        setDownloadProgress(0);
         try {
             const canDownload = await trackDownload('selected');
             if (!canDownload) return;
@@ -177,19 +179,24 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
             const zip = new JSZip();
 
             const selectedArray = Array.from(selectedPhotos);
+            let count = 0;
 
-            // 全ての選択画像をBlobとして並列フェッチ
-            const fetchPromises = selectedArray.map(async (photoId, index) => {
+            // 直列（1件ずつ）または少しずつのチャンクでフェッチしてメモリを節約
+            for (const photoId of selectedArray) {
                 const photo = photos.find(p => p.id === photoId);
                 if (photo) {
-                    const blob = await fetchImageAsBlob(photo.url);
-                    // ファイル名を作成
-                    zip.file(`photo-${index + 1}.jpg`, blob);
+                    try {
+                        const blob = await fetchImageAsBlob(photo.url);
+                        zip.file(`photo-${count + 1}.jpg`, blob);
+                        count++;
+                        setDownloadProgress(Math.round((count / selectedArray.length) * 100));
+                    } catch (e) {
+                         console.error("Failed to download photo:", photo.url, e);
+                    }
                 }
-            });
+            }
 
-            await Promise.all(fetchPromises);
-
+            setDownloadProgress(100);
             const content = await zip.generateAsync({ type: "blob" });
             saveAs(content, `${project?.folder_name || 'download'}_selected.zip`);
 
@@ -198,11 +205,13 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
             alert("ダウンロード中にエラーが発生しました。");
         } finally {
             setIsDownloading(false);
+            setDownloadProgress(0);
         }
     };
 
     const handleDownloadAll = async () => {
         setIsDownloading(true);
+        setDownloadProgress(0);
         try {
             const canDownload = await trackDownload('all');
             if (!canDownload) return;
@@ -211,14 +220,20 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
             const { saveAs } = (await import("file-saver")).default;
             const zip = new JSZip();
 
-            // 全ての画像をフェッチ
-            const fetchPromises = photos.map(async (photo, index) => {
-                const blob = await fetchImageAsBlob(photo.url);
-                zip.file(`img_${String(index + 1).padStart(3, '0')}.jpg`, blob);
-            });
+            let count = 0;
+            // 直列フェッチに変更（並行フェッチだと大量の大きな画像でメモリパンクしてエラーになるため）
+            for (let i = 0; i < photos.length; i++) {
+                try {
+                    const blob = await fetchImageAsBlob(photos[i].url);
+                    zip.file(`img_${String(i + 1).padStart(3, '0')}.jpg`, blob);
+                    count++;
+                    setDownloadProgress(Math.round((count / photos.length) * 100));
+                } catch (e) {
+                    console.error("Failed to download photo:", photos[i].url, e);
+                }
+            }
 
-            await Promise.all(fetchPromises);
-
+            setDownloadProgress(100);
             const content = await zip.generateAsync({ type: "blob" });
             saveAs(content, `${project?.folder_name || 'download'}_all.zip`);
 
@@ -227,6 +242,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
             alert("一括ダウンロード中にエラーが発生しました。");
         } finally {
             setIsDownloading(false);
+            setDownloadProgress(0);
         }
     };
 
@@ -312,7 +328,36 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto px-6 py-12 md:py-20">
+            <main className="max-w-7xl mx-auto px-6 py-12 md:py-20 relative">
+                
+                {/* Full Screen Loading Overlay for Download */}
+                <AnimatePresence>
+                    {isDownloading && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/90 backdrop-blur-md"
+                        >
+                            <div className="bg-white p-10 rounded-2xl shadow-2xl border border-stone-200 flex flex-col items-center text-center max-w-sm w-full mx-4">
+                                <div className="w-16 h-16 border-4 border-stone-200 border-t-stone-800 rounded-full animate-spin mb-8" />
+                                <h3 className="text-xl font-medium text-stone-800 mb-2 font-serif tracking-wider">ダウンロード準備中</h3>
+                                <p className="text-stone-500 mb-6 text-sm">写真のデータをまとめています...</p>
+                                
+                                <div className="w-full bg-stone-100 rounded-full h-2.5 mb-2 overflow-hidden">
+                                    <div 
+                                        className="bg-stone-800 h-2.5 rounded-full transition-all duration-300 ease-out" 
+                                        style={{ width: `${downloadProgress}%` }}
+                                    ></div>
+                                </div>
+                                <p className="text-stone-800 font-medium tracking-widest">{downloadProgress}%</p>
+                                
+                                <p className="mt-8 text-sm text-red-500 font-medium">※この画面を閉じたり、<br/>再読込しないでください</p>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
                 {/* Intro */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
