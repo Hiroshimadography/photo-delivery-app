@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FolderPlus, Search, Eye, Download, Link as LinkIcon, Trash2, Plus, ChevronRight, Copy } from "lucide-react";
+import { FolderPlus, Search, Eye, Download, Link as LinkIcon, Trash2, Plus, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -61,31 +61,6 @@ export default function AdminDashboard() {
                 // Remove from state
                 setProjects(projects.filter(p => p.id !== id));
             }
-        }
-    };
-
-    const handleDuplicate = async (id: string, name: string) => {
-        if (!window.confirm(`${name} のプロジェクトを同じ設定・同じ写真で複製しますか？\n（URLとダウンロード回数は新しくなります）`)) {
-            return;
-        }
-
-        setIsLoading(true);
-        try {
-            const res = await fetch(`/api/admin/projects/${id}/duplicate`, {
-                method: 'POST'
-            });
-            const data = await res.json();
-            
-            if (!data.success) {
-                throw new Error(data.error || "複製に失敗しました");
-            }
-
-            // 新しいプロジェクト画面に遷移する
-            router.push(`/admin/projects/${data.projectId}`);
-        } catch (error: any) {
-            console.error("Duplicate error:", error);
-            alert("複製中にエラーが発生しました: " + error.message);
-            setIsLoading(false); // エラー時のみローディングを戻す（成功時は遷移するため不要）
         }
     };
 
@@ -181,17 +156,7 @@ export default function AdminDashboard() {
                                             </div>
 
                                             {/* Actions */}
-                                            <div className="flex items-center gap-1">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleDuplicate(project.id, project.name);
-                                                    }}
-                                                    className="p-2 text-stone-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors z-10"
-                                                    title="複製"
-                                                >
-                                                    <Copy size={18} />
-                                                </button>
+                                            <div className="flex items-center gap-2">
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();

@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useCallback, use, useEffect, useRef } from "react";
-import { ArrowLeft, UploadCloud, Image as ImageIcon, Trash2, Link as LinkIcon, Copy, Pause, Play, CopyPlus } from "lucide-react";
+import { ArrowLeft, UploadCloud, Image as ImageIcon, Trash2, Link as LinkIcon, Copy, Pause, Play } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 
@@ -37,7 +36,6 @@ type Photo = {
 
 export default function ProjectDetail({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
-    const router = useRouter();
     const [project, setProject] = useState<Project | null>(null);
     const [photos, setPhotos] = useState<Photo[]>([]);
     const [downloadLogs, setDownloadLogs] = useState<DownloadLog[]>([]);
@@ -150,32 +148,6 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
         } catch (error) {
             console.error("Error saving max downloads:", error);
             alert("ダウンロード上限の保存に失敗しました");
-        }
-    };
-
-    const handleDuplicate = async () => {
-        if (!project) return;
-        if (!window.confirm(`${project.name} のプロジェクトを同じ設定・同じ写真で複製しますか？\n（URLとダウンロード回数は新しくなります）`)) {
-            return;
-        }
-
-        setIsLoading(true);
-        try {
-            const res = await fetch(`/api/admin/projects/${project.id}/duplicate`, {
-                method: 'POST'
-            });
-            const data = await res.json();
-            
-            if (!data.success) {
-                throw new Error(data.error || "複製に失敗しました");
-            }
-
-            alert("プロジェクトを複製しました。複製先のページへ移動します。");
-            router.push(`/admin/projects/${data.projectId}`);
-        } catch (error: any) {
-            console.error("Duplicate error:", error);
-            alert("複製中にエラーが発生しました: " + error.message);
-            setIsLoading(false);
         }
     };
 
@@ -424,7 +396,7 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
 
     return (
         <div className="max-w-5xl mx-auto space-y-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                     <Link href="/admin" className="p-2 -ml-2 text-stone-400 hover:text-stone-900 transition-colors rounded-lg hover:bg-stone-100">
                         <ArrowLeft size={24} />
@@ -434,14 +406,6 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                         <p className="text-stone-500 mt-1 font-mono text-sm">/{project.folder_name}</p>
                     </div>
                 </div>
-                
-                <button
-                    onClick={handleDuplicate}
-                    className="flex items-center gap-2 px-4 py-2 border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg text-sm font-medium transition-colors shadow-sm"
-                >
-                    <CopyPlus size={16} />
-                    <span>このプロジェクトを複製</span>
-                </button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
