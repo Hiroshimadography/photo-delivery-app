@@ -15,6 +15,15 @@ type Project = {
     memo: string | null;
     created_at: string;
     expires_at: string | null;
+    max_downloads: number;
+    download_count: number;
+};
+
+type DownloadLog = {
+    id: string;
+    action: string;
+    ip_address: string;
+    created_at: string;
 };
 
 type Photo = {
@@ -29,11 +38,15 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
     const { id } = use(params);
     const [project, setProject] = useState<Project | null>(null);
     const [photos, setPhotos] = useState<Photo[]>([]);
+    const [downloadLogs, setDownloadLogs] = useState<DownloadLog[]>([]);
     const [templateText, setTemplateText] = useState<string>("");
     const [isLoading, setIsLoading] = useState(true);
 
     const [isEditingMemo, setIsEditingMemo] = useState(false);
     const [memoInput, setMemoInput] = useState("");
+    
+    const [isEditingMaxDownloads, setIsEditingMaxDownloads] = useState(false);
+    const [maxDownloadsInput, setMaxDownloadsInput] = useState("");
 
     // Upload state
     const [isDragActive, setIsDragActive] = useState(false);
@@ -64,6 +77,7 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
             if (projectError) throw projectError;
             setProject(projectData);
             setMemoInput(projectData.memo || "");
+            setMaxDownloadsInput(projectData.max_downloads?.toString() || "5");
 
             // 紐づく写真一覧の取得
             const { data: photosData, error: photosError } = await supabase
@@ -88,6 +102,13 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                 setTemplateText(`{{customer_name}} 様\n\n専用ページ：{{url}}\nパスワード：{{password}}`);
             }
 
+            const { data: logsData } = await supabase
+                .from('download_logs')
+                .select('*')
+                .eq('project_id', id)
+                .order('created_at', { ascending: false });
+            setDownloadLogs(logsData || []);
+
         } catch (error) {
             console.error("Error fetching project data:", error);
         } finally {
@@ -109,6 +130,23 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
         } catch (error) {
             console.error("Error saving memo:", error);
             alert("メモの保存に失敗しました: " + (error instanceof Error ? error.message : String(error)));
+        }
+    };
+
+    const handleSaveMaxDownloads = async () => {
+        if (!project) return;
+        try {
+            const { error } = await supabase
+                .from('projects')
+                .update({ max_downloads: parseInt(maxDownloadsInput) })
+                .eq('id', project.id);
+
+            if (error) throw error;
+            setProject({ ...project, max_downloads: parseInt(maxDownloadsInput) });
+            setIsEditingMaxDownloads(false);
+        } catch (error) {
+            console.error("Error saving max downloads:", error);
+            alert("ダウンロード上限の保存に失敗しました");
         }
     };
 
@@ -161,30 +199,21 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                 const uniqueFilename = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${ext}`;
                 const storagePath = `${project.folder_name}/${uniqueFilename}`;
 
-                // 1. Supabase Storageにアップロード
-                const { error: uploadError } = await supabase.storage
-                    .from('photos')
-                    .upload(storagePath, file);
+                // バックエンドAPI経由でセキュアにアップロードを実行
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('projectId', project.id);
+                formData.append('storagePath', storagePath);
 
-                if (uploadError) throw uploadError;
+                const response = await fetch('/api/admin/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
 
-                // 2. 公開URLを取得
-                const { data: { publicUrl } } = supabase.storage
-                    .from('photos')
-                    .getPublicUrl(storagePath);
-
-                // 3. Databaseの photos テーブルにレコード追加
-                const { error: dbError } = await supabase
-                    .from('photos')
-                    .insert([
-                        {
-                            project_id: project.id,
-                            storage_path: storagePath,
-                            url: publicUrl
-                        }
-                    ]);
-
-                if (dbError) throw dbError;
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Upload failed');
+                }
 
                 completedCount++;
                 setUploadProgress(Math.round((completedCount / files.length) * 100));
@@ -427,6 +456,59 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                                     {project.expires_at ? `${new Date(project.expires_at).toLocaleDateString('ja-JP')} 23:59まで` : '期限なし'}
                                 </div>
                             </div>
+
+                            <div>
+                                <div className="flex justify-between items-center mb-1">
+                                    <p className="text-sm text-stone-500">ダウンロード状況</p>
+                                    {!isEditingMaxDownloads && (
+                                        <button
+                                            onClick={() => setIsEditingMaxDownloads(true)}
+                                            className="text-xs text-stone-500 hover:text-stone-900 underline"
+                                        >
+                                            上限変更
+                                        </button>
+                                    )}
+                                </div>
+                                
+                                {isEditingMaxDownloads ? (
+                                    <div className="space-y-2 mt-2">
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                value={maxDownloadsInput}
+                                                onChange={(e) => setMaxDownloadsInput(e.target.value)}
+                                                className="w-24 bg-white border border-stone-200 rounded-lg px-3 py-1.5 text-sm text-stone-700"
+                                            />
+                                            <span className="text-sm text-stone-500">回</span>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    setIsEditingMaxDownloads(false);
+                                                    setMaxDownloadsInput(project.max_downloads?.toString() || "5");
+                                                }}
+                                                className="text-xs px-3 py-1.5 text-stone-500 hover:bg-stone-100 rounded transition-colors"
+                                            >
+                                                キャンセル
+                                            </button>
+                                            <button
+                                                onClick={handleSaveMaxDownloads}
+                                                className="text-xs px-3 py-1.5 bg-stone-900 text-white hover:bg-stone-800 rounded shadow-sm transition-colors"
+                                            >
+                                                保存
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-stone-800 text-sm font-medium flex items-center gap-2">
+                                        <span>{project.download_count} / {project.max_downloads} 回</span>
+                                        {project.download_count >= project.max_downloads && (
+                                            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold">上限到達</span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <div className="mt-8 pt-4 border-t border-stone-100 flex flex-col gap-3">
@@ -449,7 +531,8 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                                         .replace(/{{customer_name}}/g, project.name)
                                         .replace(/{{url}}/g, `${window.location.origin}/p/${project.folder_name}`)
                                         .replace(/{{password}}/g, project.password || '設定なし')
-                                        .replace(/{{expiry_date}}/g, project.expires_at ? new Date(project.expires_at).toLocaleDateString('ja-JP') : '');
+                                        .replace(/{{expiry_date}}/g, project.expires_at ? new Date(project.expires_at).toLocaleDateString('ja-JP') : '')
+                                        .replace(/{{max_downloads}}/g, project.max_downloads?.toString() || '5');
                                     navigator.clipboard.writeText(text);
                                     alert('案内文をコピーしました');
                                 }}
@@ -463,6 +546,28 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                                 テンプレートを編集する
                             </Link>
                         </div>
+                    </div>
+                    
+                    {/* Access Logs */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
+                        <h3 className="text-lg font-medium text-stone-900 mb-4 pb-2 border-b border-stone-100">ダウンロード履歴</h3>
+                        {downloadLogs.length === 0 ? (
+                            <p className="text-sm text-stone-400 text-center py-4">履歴はありません</p>
+                        ) : (
+                            <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                                {downloadLogs.map(log => (
+                                    <div key={log.id} className="text-sm border-b border-stone-100 pb-2 last:border-0 last:pb-0">
+                                        <div className="flex justify-between items-center text-stone-500 mb-1">
+                                            <span className="text-xs font-mono">{new Date(log.created_at).toLocaleString('ja-JP')}</span>
+                                            <span className="text-xs bg-stone-100 px-2 py-0.5 rounded">{log.action === 'all' ? '一括保存' : '選択保存'}</span>
+                                        </div>
+                                        <div className="text-stone-800 font-mono text-xs">
+                                            IP: {log.ip_address}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

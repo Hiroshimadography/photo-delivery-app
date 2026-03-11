@@ -16,9 +16,11 @@ type Project = {
     expires_at: string | null;
     view_count: number;
     download_count: number;
+    max_downloads: number;
 };
 
 export default function AdminDashboard() {
+    const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
     const [projects, setProjects] = useState<Project[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -103,9 +105,7 @@ export default function AdminDashboard() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {filteredProjects.map((project) => {
-                                const router = useRouter();
-                                return (
+                            {filteredProjects.map((project) => (
                                     <motion.div
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
@@ -151,7 +151,7 @@ export default function AdminDashboard() {
                                                 </div>
                                                 <div className="flex items-center gap-1.5" title="ダウンロード回数">
                                                     <Download size={16} className="text-stone-400" />
-                                                    <span className="font-medium">{project.download_count}</span>
+                                                    <span className="font-medium">{project.download_count} / {project.max_downloads || 5}</span>
                                                 </div>
                                             </div>
 
@@ -173,8 +173,7 @@ export default function AdminDashboard() {
                                             </div>
                                         </div>
                                     </motion.div>
-                                );
-                            })}
+                                ))}
                         </div>
                     )}
                 </div>

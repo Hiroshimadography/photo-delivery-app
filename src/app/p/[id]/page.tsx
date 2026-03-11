@@ -9,9 +9,11 @@ type Project = {
     id: string;
     name: string;
     folder_name: string;
-    password: string | null;
-    expires_at: string | null;
-    status: string;
+    hasPassword?: boolean;
+    expires_at?: string | null;
+    status?: string;
+    download_count?: number;
+    max_downloads?: number;
 };
 
 type Photo = {
@@ -44,37 +46,32 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
     const fetchProjectData = async () => {
         setIsLoading(true);
         try {
-            // 1. プロジェクト取得
-            const { data: pData, error: pError } = await supabase
-                .from('projects')
-                .select('*')
-                .eq('folder_name', folder_name)
-                .single();
+            // 1. プロジェクト取得 (API経由)
+            const res = await fetch(`/api/delivery/${folder_name}`);
+            const data = await res.json();
 
-            if (pError || !pData) {
-                console.error("Project not found", pError);
+            if (!data.success || !data.project) {
+                console.error("Project not found");
                 setIsLoading(false);
                 return;
             }
-            setProject(pData);
+            setProject(data.project);
 
-            // パスワードが設定されていなければ最初から認証済みとする
-            if (!pData.password) {
-                setIsAuthenticated(true);
+            // パスワードが設定されていなければ最初から認証済みとし、写真を取得
+            if (!data.project.hasPassword) {
+                const photoRes = await fetch(`/api/delivery/${folder_name}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: '' })
+                });
+                const photoData = await photoRes.json();
+                if (photoData.success) {
+                    setPhotos(photoData.photos);
+                    setIsAuthenticated(true);
+                }
             }
 
-            // 2. 写真取得
-            const { data: photoData } = await supabase
-                .from('photos')
-                .select('*')
-                .eq('project_id', pData.id)
-                .order('created_at', { ascending: true });
-
-            if (photoData) {
-                setPhotos(photoData);
-            }
-
-            // 3. ブランド設定取得 (とりあえずID 1などを想定)
+            // 3. ブランド設定取得 (Public RLSなので直接取得)
             const { data: sData, error: sError } = await supabase
                 .from('brand_settings')
                 .select('*')
@@ -88,9 +85,6 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                 });
             }
 
-            // 閲覧回数のカウントアップ (今回RPCは省略して簡易更新、もしくは作らない)
-            // if (pData) { ... }
-
         } catch (err) {
             console.error(err);
         } finally {
@@ -100,13 +94,29 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
 
     const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (project && (passwordInput === project.password || !project.password)) {
-            setIsAuthenticated(true);
-            setError(false);
-        } else {
+        setIsLoading(true);
+        try {
+            const res = await fetch(`/api/delivery/${folder_name}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: passwordInput })
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                setPhotos(data.photos);
+                setIsAuthenticated(true);
+                setError(false);
+            } else {
+                setError(true);
+            }
+        } catch (err) {
+            console.error(err);
             setError(true);
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -129,10 +139,38 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
         return await response.blob();
     };
 
+    const trackDownload = async (action: string) => {
+        try {
+            const res = await fetch(`/api/delivery/${folder_name}/download`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action })
+            });
+            const data = await res.json();
+            if (!data.success) {
+                alert(data.message || 'ダウンロード制限に達したか、エラーが発生しました。');
+                return false;
+            }
+            
+            // 成功したらローカルのカウントを１増やす（UI即時反映のため）
+            if (project) {
+                setProject({ ...project, download_count: (project.download_count || 0) + 1 });
+            }
+            
+            return true;
+        } catch (e) {
+            alert('通信エラーが発生しました。');
+            return false;
+        }
+    };
+
     const handleDownloadSelected = async () => {
         if (selectedPhotos.size === 0) return;
         setIsDownloading(true);
         try {
+            const canDownload = await trackDownload('selected');
+            if (!canDownload) return;
+
             const JSZip = (await import("jszip")).default;
             const { saveAs } = (await import("file-saver")).default;
             const zip = new JSZip();
@@ -165,6 +203,9 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
     const handleDownloadAll = async () => {
         setIsDownloading(true);
         try {
+            const canDownload = await trackDownload('all');
+            if (!canDownload) return;
+
             const JSZip = (await import("jszip")).default;
             const { saveAs } = (await import("file-saver")).default;
             const zip = new JSZip();
@@ -290,8 +331,19 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
 
                 {/* Action Bar (Sticky) */}
                 <div className="sticky top-24 z-30 bg-white shadow-lg shadow-stone-200/20 border border-stone-200/60 rounded-xl p-4 md:p-6 mb-12 flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-xl">
-                    <div className="text-stone-600 text-sm font-medium w-full sm:w-auto text-center sm:text-left">
-                        {selectedPhotos.size > 0 ? `${selectedPhotos.size}枚の写真を選択中` : '写真を選択してダウンロード可能です'}
+                    <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left w-full sm:w-auto">
+                        <div className="text-stone-600 text-sm font-medium">
+                            {selectedPhotos.size > 0 ? `${selectedPhotos.size}枚の写真を選択中` : '写真を選択してダウンロード可能です'}
+                        </div>
+                        
+                        {project?.max_downloads !== undefined && project?.download_count !== undefined && (
+                            <div className="flex items-center gap-2 bg-stone-50 px-3 py-1.5 rounded-full border border-stone-200">
+                                <Download size={14} className="text-stone-400" />
+                                <span className="text-xs font-medium text-stone-600">
+                                    ダウンロード: <span className="text-stone-900">{project.download_count} / {project.max_downloads}回</span>
+                                </span>
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex w-full sm:w-auto gap-3">
@@ -351,8 +403,18 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
             {/* Bottom Action Bar */}
             <div className="max-w-7xl mx-auto px-6 mb-20">
                 <div className="bg-white shadow-lg shadow-stone-200/20 border border-stone-200/60 rounded-xl p-4 md:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-xl">
-                    <div className="text-stone-600 text-sm font-medium w-full sm:w-auto text-center sm:text-left">
-                        {selectedPhotos.size > 0 ? `${selectedPhotos.size}枚の写真を選択中` : '写真を選択してダウンロード可能です'}
+                    <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left w-full sm:w-auto">
+                        <div className="text-stone-600 text-sm font-medium">
+                            {selectedPhotos.size > 0 ? `${selectedPhotos.size}枚の写真を選択中` : '写真を選択してダウンロード可能です'}
+                        </div>
+                        {project?.max_downloads !== undefined && project?.download_count !== undefined && (
+                            <div className="flex items-center gap-2 bg-stone-50 px-3 py-1.5 rounded-full border border-stone-200">
+                                <Download size={14} className="text-stone-400" />
+                                <span className="text-xs font-medium text-stone-600">
+                                    残り <span className="text-stone-900">{Math.max(0, project.max_downloads - project.download_count)}</span> 回
+                                </span>
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex w-full sm:w-auto gap-3">

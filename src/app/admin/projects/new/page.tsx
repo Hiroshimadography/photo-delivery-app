@@ -12,6 +12,7 @@ export default function NewProject() {
     const [password, setPassword] = useState("");
     const [memo, setMemo] = useState("");
     const [expiryDays, setExpiryDays] = useState("30");
+    const [maxDownloads, setMaxDownloads] = useState("5");
 
     const [isSaving, setIsSaving] = useState(false);
 
@@ -21,9 +22,8 @@ export default function NewProject() {
         // 簡単な入力チェック
         if (!name.trim()) return;
 
-        // フォルダ名を名前から自動生成 (英数字やハイフン以外をのぞく等の処理)
-        // 今回のシステムでは一意のタイムスタンプ等を付与する
-        const generatedFolderName = `project-${Date.now()}`;
+        // フォルダ名を推測不可能なUUIDで自動生成
+        const generatedFolderName = crypto.randomUUID();
 
         setIsSaving(true);
         try {
@@ -41,7 +41,8 @@ export default function NewProject() {
                         expires_at: expiresAt.toISOString(),
                         status: 'active',
                         view_count: 0,
-                        download_count: 0
+                        download_count: 0,
+                        max_downloads: parseInt(maxDownloads) || 5
                     }
                 ])
                 .select()
@@ -126,6 +127,17 @@ export default function NewProject() {
                                 <option value="7">7日間</option>
                                 <option value="30">30日間</option>
                             </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-stone-700 mb-2">ダウンロード上限回数</label>
+                            <input
+                                type="number"
+                                min="1"
+                                value={maxDownloads}
+                                onChange={(e) => setMaxDownloads(e.target.value)}
+                                className="w-full px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-400 focus:bg-white transition-all"
+                            />
                         </div>
 
                         <div>
