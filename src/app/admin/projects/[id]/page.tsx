@@ -206,23 +206,45 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                     const ext = file.name.split('.').pop() || 'jpg';
                     const uniqueFilename = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${ext}`;
                     const storagePath = `${project.folder_name}/${uniqueFilename}`;
+                    const thumbStoragePath = `${project.folder_name}/thumb_${uniqueFilename}`;
 
                     try {
-                        const initRes = await fetch('/api/admin/upload/init', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ storagePath }),
-                        });
-                        if (!initRes.ok) throw new Error('Init API failed');
+                        // 1. サムネイルの生成
+                        const thumbBlob = await generateThumbnail(file);
+
+                        // 2. オリジナルとサムネイルの両方の Signed Upload URL を取得
+                        const [initRes, thumbInitRes] = await Promise.all([
+                            fetch('/api/admin/upload/init', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ storagePath }),
+                            }),
+                            fetch('/api/admin/upload/init', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ storagePath: thumbStoragePath }),
+                            })
+                        ]);
+
+                        if (!initRes.ok || !thumbInitRes.ok) throw new Error('Init API failed');
+                        
                         const initResult = await initRes.json();
+                        const thumbInitResult = await thumbInitRes.json();
+                        
                         const token = initResult.data?.token;
-                        if (!token) throw new Error('No Signed URL Token');
+                        const thumbToken = thumbInitResult.data?.token;
+                        if (!token || !thumbToken) throw new Error('No Signed URL Token');
 
-                        const { error: uploadError } = await supabase.storage
-                            .from('photos')
-                            .uploadToSignedUrl(storagePath, token, file);
-                        if (uploadError) throw new Error(uploadError.message);
+                        // 3. オリジナルとサムネイルを並行してアップロード
+                        const [uploadOriginal, uploadThumb] = await Promise.all([
+                            supabase.storage.from('photos').uploadToSignedUrl(storagePath, token, file),
+                            supabase.storage.from('photos').uploadToSignedUrl(thumbStoragePath, thumbToken, thumbBlob)
+                        ]);
 
+                        if (uploadOriginal.error) throw new Error(`Original upload failed: ${uploadOriginal.error.message}`);
+                        if (uploadThumb.error) throw new Error(`Thumb upload failed: ${uploadThumb.error.message}`);
+
+                        // 4. Finalize APIを呼び出し Databaseに記録
                         const finRes = await fetch('/api/admin/upload/finalize', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -264,6 +286,44 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
     const handlePause = () => {
         setIsPaused(true);
         isPausedRef.current = true;
+    };
+
+    const generateThumbnail = (file: File, maxSize = 600): Promise<Blob> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > height) {
+                        if (width > maxSize) {
+                            height = Math.round((height * maxSize) / width);
+                            width = maxSize;
+                        }
+                    } else {
+                        if (height > maxSize) {
+                            width = Math.round((width * maxSize) / height);
+                            height = maxSize;
+                        }
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) return reject(new Error('Canvas context not supported'));
+                    ctx.drawImage(img, 0, 0, width, height);
+                    canvas.toBlob((blob) => {
+                        if (blob) resolve(blob);
+                        else reject(new Error('Canvas toBlob failed'));
+                    }, 'image/jpeg', 0.8);
+                };
+                img.onerror = reject;
+                img.src = e.target?.result as string;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
     };
 
     const handleDeletePhoto = async (photoId: string, storagePath: string) => {

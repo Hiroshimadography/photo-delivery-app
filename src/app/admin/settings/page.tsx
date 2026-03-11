@@ -50,16 +50,27 @@ export default function BrandSettings() {
 
             // 新しいファイルがアップロードされた場合
             if (logoFile) {
-                const fileExt = logoFile.name.split('.').pop();
+                const fileExt = logoFile.name.split('.').pop() || 'png';
                 const fileName = `logo-${Date.now()}.${fileExt}`;
+                
+                // 1. Signed URLを取得してアップロード (RLS制限とVercel容量制限を回避)
+                const initRes = await fetch('/api/admin/upload/init', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ storagePath: fileName, bucket: 'brand' }),
+                });
+                if (!initRes.ok) throw new Error('ロゴのアップロード準備に失敗しました');
+                
+                const { data: initData } = await initRes.json();
+
                 // storageへのアップロード
                 const { error: uploadError } = await supabase.storage
                     .from('brand')
-                    .upload(fileName, logoFile);
+                    .uploadToSignedUrl(fileName, initData.token, logoFile);
 
                 if (uploadError) throw uploadError;
 
-                // 公開URLを取得
+                // 公開URLを取得 (brandバケットは公開アクセス可能)
                 const { data: publicUrlData } = supabase.storage
                     .from('brand')
                     .getPublicUrl(fileName);

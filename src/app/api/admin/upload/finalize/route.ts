@@ -15,12 +15,27 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        // Generate signed URL for admin thumbnail display
+        // Generate signed URL for admin thumbnail display (valid for 10 years to prevent expiration)
+        const expiryTime = 60 * 60 * 24 * 365 * 10;
+        
+        // Use thumb path for the admin preview to speed up loading
+        const parts = storagePath.split('/');
+        const filename = parts.pop() || '';
+        const thumbStoragePath = `${parts.join('/')}/thumb_${filename}`;
+
         const { data: signedData } = await supabase.storage
             .from('photos')
-            .createSignedUrl(storagePath, 60 * 60 * 24 * 7);
+            .createSignedUrl(thumbStoragePath, expiryTime);
 
-        const thumbUrl = signedData?.signedUrl || '';
+        let thumbUrl = signedData?.signedUrl;
+        
+        // If thumb signed URL somehow fails, fallback to original path
+        if (!thumbUrl) {
+             const { data: origSignedData } = await supabase.storage
+                .from('photos')
+                .createSignedUrl(storagePath, expiryTime);
+             thumbUrl = origSignedData?.signedUrl || '';
+        }
 
         const { error: dbError } = await supabase
             .from('photos')

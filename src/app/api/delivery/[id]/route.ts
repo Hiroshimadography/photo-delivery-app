@@ -74,9 +74,19 @@ export async function POST(
                 .from('photos')
                 .createSignedUrl(photo.storage_path, 7200);
 
+            // サムネイル用のURLも生成
+            const parts = photo.storage_path.split('/');
+            const filename = parts.pop() || '';
+            const thumbPath = `${parts.join('/')}/thumb_${filename}`;
+
+            const { data: thumbData } = await supabaseAdmin.storage
+                .from('photos')
+                .createSignedUrl(thumbPath, 7200);
+
             return {
                 id: photo.id,
-                url: urlError ? null : data?.signedUrl
+                url: urlError ? null : data?.signedUrl,
+                thumbUrl: thumbData?.signedUrl
             };
         }));
 

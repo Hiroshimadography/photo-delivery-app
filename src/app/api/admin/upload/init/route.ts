@@ -9,14 +9,14 @@ const supabase = createClient(
 
 export async function POST(req: NextRequest) {
     try {
-        const { storagePath } = await req.json();
+        const { storagePath, bucket = 'photos' } = await req.json();
         
         if (!storagePath) {
             return NextResponse.json({ error: "Missing storagePath" }, { status: 400 });
         }
 
         const { data, error } = await supabase.storage
-            .from('photos')
+            .from(bucket)
             .createSignedUploadUrl(storagePath);
 
         if (error) {

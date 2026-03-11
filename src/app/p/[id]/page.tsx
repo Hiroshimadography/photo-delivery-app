@@ -19,6 +19,7 @@ type Project = {
 type Photo = {
     id: string;
     url: string;
+    thumbUrl?: string;
 };
 
 type BrandSettings = {
@@ -380,10 +381,15 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                                 onClick={() => togglePhotoSelection(photo.id)}
                             >
                                 <img
-                                    src={photo.url}
+                                    src={photo.thumbUrl || photo.url}
                                     alt=""
                                     className={`w-full h-full object-cover transition-all duration-700 ${isSelected ? 'scale-105 opacity-90' : 'group-hover:scale-105 group-hover:opacity-90'}`}
                                     loading="lazy"
+                                    onError={(e) => {
+                                        if (photo.url && e.currentTarget.src !== photo.url) {
+                                            e.currentTarget.src = photo.url;
+                                        }
+                                    }}
                                 />
 
                                 {/* Selection Overlay */}
