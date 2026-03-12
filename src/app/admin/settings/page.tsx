@@ -9,13 +9,13 @@ import { supabase } from "@/lib/supabase";
 export default function BrandSettings() {
     const [isSaved, setIsSaved] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
     const [settingId, setSettingId] = useState<string | null>(null);
 
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
     const [isDragActive, setIsDragActive] = useState(false);
-    const [brandName, setBrandName] = useState("");
+    const [brandName, setBrandName] = useState("Hiroshimadography");
 
     useEffect(() => {
         fetchSettings();

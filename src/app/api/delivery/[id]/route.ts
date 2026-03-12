@@ -43,10 +43,10 @@ export async function GET(
                 download_count: project.download_count,
                 max_downloads: project.max_downloads
             },
-            settings: brandSettings ? {
-                brand_name: brandSettings.brand_name,
-                logo_url: brandSettings.logo_url
-            } : null
+            settings: {
+                brand_name: brandSettings?.brand_name || "Hiroshimadography",
+                logo_url: brandSettings?.logo_url || null
+            }
         }, {
             headers: {
                 'Cache-Control': 'no-store, max-age=0',
@@ -128,10 +128,10 @@ export async function POST(
                 download_count: project.download_count,
                 max_downloads: project.max_downloads
             },
-            settings: brandSettings ? {
-                brand_name: brandSettings.brand_name,
-                logo_url: brandSettings.logo_url
-            } : null,
+            settings: {
+                brand_name: brandSettings?.brand_name || "Hiroshimadography",
+                logo_url: brandSettings?.logo_url || null
+            },
             photos: photosWithUrls.filter(p => p.url)
         }, {
             headers: {

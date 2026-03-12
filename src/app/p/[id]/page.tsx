@@ -32,8 +32,8 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
 
     const [project, setProject] = useState<Project | null>(null);
     const [photos, setPhotos] = useState<Photo[]>([]);
-    const [settings, setSettings] = useState<BrandSettings | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [settings, setSettings] = useState<BrandSettings | null>({ brand_name: "Hiroshimadography", logo_url: null });
+    const [isLoading, setIsLoading] = useState(false); // 初期表示は待たせない
 
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [passwordInput, setPasswordInput] = useState("");
@@ -281,10 +281,8 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                 >
                     {settings?.logo_url ? (
                         <img src={settings.logo_url} alt={settings.brand_name} className="max-h-12 mx-auto mb-8 object-contain" />
-                    ) : settings?.brand_name ? (
-                        <h1 className="text-sm tracking-[0.3em] text-stone-400 mb-8 font-medium">{settings.brand_name}</h1>
                     ) : (
-                        <div className="h-4 w-32 bg-stone-100 animate-pulse mx-auto mb-8 rounded" />
+                        <h1 className="text-sm tracking-[0.3em] text-stone-400 mb-8 font-medium">{settings?.brand_name || "Hiroshimadography"}</h1>
                     )}
 
                     <h2 className="text-3xl font-serif text-stone-800 tracking-widest mb-2 leading-relaxed">
