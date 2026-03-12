@@ -27,6 +27,7 @@ export async function GET(
         const { data: brandSettings, error: brandError } = await supabaseAdmin
             .from('brand_settings')
             .select('*')
+            .order('updated_at', { ascending: false })
             .limit(1)
             .maybeSingle();
 
@@ -68,6 +69,7 @@ export async function POST(
         const { data: project, error } = await supabaseAdmin
             .from('projects')
             .select('*')
+            .order('updated_at', { ascending: false })
             .eq('folder_name', id)
             .single();
 
@@ -82,6 +84,7 @@ export async function POST(
         const { data: brandSettings, error: brandError } = await supabaseAdmin
             .from('brand_settings')
             .select('*')
+            .order('updated_at', { ascending: false })
             .limit(1)
             .maybeSingle();
 
