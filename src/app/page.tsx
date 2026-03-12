@@ -5,15 +5,20 @@ export const dynamic = 'force-dynamic';
 
 export default async function Home() {
   const supabase = createAdminClient();
-  const { data: brandSettings } = await supabase
-    .from('brand_settings')
-    .select('*')
-    .not('id', 'is', null) // ダミークエリでキャッシュ回避を補助
-    .order('updated_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  let brandSettings = null;
+  try {
+    const { data } = await supabase
+      .from('brand_settings')
+      .select('*')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    brandSettings = data;
+  } catch (err) {
+    console.error("Fetch brand settings error in Home:", err);
+  }
 
-  const brandName = brandSettings?.brand_name || "";
+  const brandName = brandSettings?.brand_name || "Hiroshimadography";
   const logoUrl = brandSettings?.logo_url;
 
   return (

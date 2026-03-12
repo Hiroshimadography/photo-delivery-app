@@ -79,7 +79,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                     logo_url: data.settings.logo_url
                 });
             } else {
-                setSettings({ brand_name: "", logo_url: null });
+                setSettings({ brand_name: "Hiroshimadography", logo_url: null });
             }
 
         } catch (err) {
