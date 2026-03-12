@@ -1,10 +1,31 @@
+import { createAdminClient } from "@/utils/supabase/admin";
 import Link from "next/link";
 
-export default function Home() {
+export const dynamic = 'force-dynamic';
+
+export default async function Home() {
+  const supabase = createAdminClient();
+  const { data: brandSettings } = await supabase
+    .from('brand_settings')
+    .select('*')
+    .not('id', 'is', null) // ダミークエリでキャッシュ回避を補助
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const brandName = brandSettings?.brand_name || "";
+  const logoUrl = brandSettings?.logo_url;
+
   return (
     <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-8">
       <div className="text-center space-y-8 max-w-2xl mx-auto">
-        <h1 className="text-sm tracking-[0.4em] text-stone-400 uppercase font-medium">Lumière Photography</h1>
+        <div className="flex justify-center mb-4">
+          {logoUrl ? (
+            <img src={logoUrl} alt={brandName} className="max-h-16 object-contain" />
+          ) : (
+            <h1 className="text-sm tracking-[0.4em] text-stone-400 uppercase font-medium">{brandName}</h1>
+          )}
+        </div>
         <h2 className="text-4xl md:text-5xl font-serif text-stone-800 tracking-widest leading-tight">
           Timeless Moments,<br />Beautifully Delivered.
         </h2>

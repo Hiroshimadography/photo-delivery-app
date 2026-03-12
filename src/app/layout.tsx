@@ -17,7 +17,9 @@ const notoSerifJP = Noto_Serif_JP({
   preload: false,
 });
 
-export const metadata: Metadata = {
+export const dynamic = 'force-dynamic';
+
+export const metadata = {
   title: "Photo Delivery | Premium Photography",
   description: "Secure and elegant photo delivery for your special moments.",
 };

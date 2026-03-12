@@ -32,7 +32,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
 
     const [project, setProject] = useState<Project | null>(null);
     const [photos, setPhotos] = useState<Photo[]>([]);
-    const [settings, setSettings] = useState<BrandSettings>({ brand_name: "Lumière Photography", logo_url: null });
+    const [settings, setSettings] = useState<BrandSettings | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -72,12 +72,14 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                 }
             }
 
-            // 3. ブランド設定のパブリック取得は削除し、APIから取得したsettingsを使う
-            if (data.settings) {
+            // 3. ブランド設定の反映
+            if (data.settings && data.settings.brand_name) {
                 setSettings({
-                    brand_name: data.settings.brand_name || "Lumière Photography",
+                    brand_name: data.settings.brand_name,
                     logo_url: data.settings.logo_url
                 });
+            } else {
+                setSettings({ brand_name: "", logo_url: null });
             }
 
         } catch (err) {
@@ -277,11 +279,12 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                     transition={{ duration: 0.8, ease: "easeOut" }}
                     className="z-10 w-full max-w-md bg-white/80 backdrop-blur-xl p-10 rounded-2xl shadow-2xl border border-white/50 text-center"
                 >
-                    {settings.logo_url ? (
-
+                    {settings?.logo_url ? (
                         <img src={settings.logo_url} alt={settings.brand_name} className="max-h-12 mx-auto mb-8 object-contain" />
-                    ) : (
+                    ) : settings?.brand_name ? (
                         <h1 className="text-sm tracking-[0.3em] text-stone-400 mb-8 font-medium">{settings.brand_name}</h1>
+                    ) : (
+                        <div className="h-4 w-32 bg-stone-100 animate-pulse mx-auto mb-8 rounded" />
                     )}
 
                     <h2 className="text-3xl font-serif text-stone-800 tracking-widest mb-2 leading-relaxed">
@@ -323,12 +326,11 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
             {/* Header */}
             <header className="sticky top-0 z-40 bg-[#FDFCFB]/90 backdrop-blur-md border-b border-stone-200/50">
                 <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-                    {settings.logo_url ? (
-
+                    {settings?.logo_url ? (
                         <img src={settings.logo_url} alt={settings.brand_name} className="max-h-8 object-contain" />
                     ) : (
-                        <div className="text-sm tracking-[0.2em] text-stone-900 font-medium">
-                            {settings.brand_name}
+                        <div className="text-sm tracking-[0.2em] text-stone-900 font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+                            {settings?.brand_name || ""}
                         </div>
                     )}
                     <div className="text-stone-500 font-serif tracking-widest text-sm hidden md:block">
@@ -508,7 +510,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
             {/* Footer */}
             <footer className="py-12 text-center border-t border-stone-200">
                 <p className="text-xs tracking-widest text-stone-400 uppercase">
-                    © {new Date().getFullYear()} Lumière Photography
+                    © {new Date().getFullYear()} {settings?.brand_name || ""}
                 </p>
             </footer>
         </div>

@@ -15,7 +15,7 @@ export default function BrandSettings() {
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
     const [isDragActive, setIsDragActive] = useState(false);
-    const [brandName, setBrandName] = useState("Lumière Photography");
+    const [brandName, setBrandName] = useState("");
 
     useEffect(() => {
         fetchSettings();
@@ -27,8 +27,9 @@ export default function BrandSettings() {
             const { data, error } = await supabase
                 .from('brand_settings')
                 .select('*')
+                .order('updated_at', { ascending: false })
                 .limit(1)
-                .maybeSingle(); // Changed to maybeSingle to handle empty table gracefully
+                .maybeSingle(); 
 
             if (data) {
                 setSettingId(data.id);
@@ -197,7 +198,7 @@ export default function BrandSettings() {
                             required
                             value={brandName}
                             onChange={(e) => setBrandName(e.target.value)}
-                            placeholder="例: Lumière Photography"
+                            placeholder="例: 写真館の名前"
                             className="w-full max-w-md px-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-400 focus:bg-white transition-all"
                         />
                     </div>

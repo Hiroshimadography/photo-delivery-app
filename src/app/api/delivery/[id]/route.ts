@@ -24,11 +24,15 @@ export async function GET(
         }
 
         // URLパラメータのみでアクセス可能な情報として、ブランド設定も返す
-        const { data: brandSettings } = await supabaseAdmin
+        const { data: brandSettings, error: brandError } = await supabaseAdmin
             .from('brand_settings')
             .select('*')
             .limit(1)
-            .single();
+            .maybeSingle();
+
+        if (brandError) {
+            console.error('Error fetching brand settings:', brandError);
+        }
 
         return NextResponse.json({
             success: true,
@@ -43,6 +47,10 @@ export async function GET(
                 brand_name: brandSettings.brand_name,
                 logo_url: brandSettings.logo_url
             } : null
+        }, {
+            headers: {
+                'Cache-Control': 'no-store, max-age=0',
+            }
         });
     } catch (e) {
          return NextResponse.json({ success: false, message: 'Server error' }, { status: 500 });
@@ -71,11 +79,15 @@ export async function POST(
             return NextResponse.json({ success: false, message: 'Invalid password' }, { status: 401 });
         }
 
-        const { data: brandSettings } = await supabaseAdmin
+        const { data: brandSettings, error: brandError } = await supabaseAdmin
             .from('brand_settings')
             .select('*')
             .limit(1)
-            .single();
+            .maybeSingle();
+
+        if (brandError) {
+            console.error('Error fetching brand settings in POST:', brandError);
+        }
 
         const { data: photos, error: photosError } = await supabaseAdmin
             .from('photos')
@@ -121,6 +133,10 @@ export async function POST(
                 logo_url: brandSettings.logo_url
             } : null,
             photos: photosWithUrls.filter(p => p.url)
+        }, {
+            headers: {
+                'Cache-Control': 'no-store, max-age=0',
+            }
         });
 
     } catch (e) {
