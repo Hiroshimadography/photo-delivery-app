@@ -30,28 +30,25 @@ export default function NewProject() {
             const expiresAt = new Date();
             expiresAt.setDate(expiresAt.getDate() + parseInt(expiryDays));
 
-            const { data, error } = await supabase
-                .from('projects')
-                .insert([
-                    {
-                        name: name,
-                        folder_name: generatedFolderName,
-                        password: password || null,
-                        memo: memo || null,
-                        expires_at: expiresAt.toISOString(),
-                        status: 'active',
-                        view_count: 0,
-                        download_count: 0,
-                        max_downloads: parseInt(maxDownloads) || 5
-                    }
-                ])
-                .select()
-                .single();
+            // Use server-side API to encrypt password before storing
+            const res = await fetch('/api/admin/projects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name,
+                    folder_name: generatedFolderName,
+                    password: password || null,
+                    memo: memo || null,
+                    expires_at: expiresAt.toISOString(),
+                    max_downloads: parseInt(maxDownloads) || 5,
+                }),
+            });
 
-            if (error) throw error;
+            const result = await res.json();
+            if (!res.ok) throw new Error(result.error || 'Failed to create project');
 
-            if (data) {
-                router.push(`/admin/projects/${data.id}`);
+            if (result.data) {
+                router.push(`/admin/projects/${result.data.id}`);
             }
         } catch (error) {
             console.error('Error creating project:', error);

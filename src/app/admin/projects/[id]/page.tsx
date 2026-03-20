@@ -42,6 +42,8 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
     const [templateText, setTemplateText] = useState<string>("");
     const [isLoading, setIsLoading] = useState(true);
 
+    const [decryptedPassword, setDecryptedPassword] = useState<string | null>(null);
+
     const [isEditingMemo, setIsEditingMemo] = useState(false);
     const [memoInput, setMemoInput] = useState("");
     
@@ -80,15 +82,45 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
             setMemoInput(projectData.memo || "");
             setMaxDownloadsInput(projectData.max_downloads?.toString() || "5");
 
-            // 紐づく写真一覧の取得
-            const { data: photosData, error: photosError } = await supabase
-                .from('photos')
-                .select('*')
-                .eq('project_id', id)
-                .order('created_at', { ascending: true });
+            // Fetch decrypted password from server-side API
+            if (projectData.password) {
+                try {
+                    const pwRes = await fetch(`/api/admin/projects/${id}/password`);
+                    if (pwRes.ok) {
+                        const pwData = await pwRes.json();
+                        setDecryptedPassword(pwData.password);
+                    }
+                } catch {
+                    setDecryptedPassword(null);
+                }
+            } else {
+                setDecryptedPassword(null);
+            }
 
-            if (photosError) throw photosError;
-            setPhotos(photosData || []);
+            // 紐づく写真一覧の取得（サーバーサイドで署名付きURLを再生成）
+            try {
+                const photosRes = await fetch(`/api/admin/projects/${id}/photos`);
+                if (photosRes.ok) {
+                    const photosResult = await photosRes.json();
+                    setPhotos(photosResult.photos || []);
+                } else {
+                    // Fallback to direct DB query if API fails
+                    const { data: photosData, error: photosError } = await supabase
+                        .from('photos')
+                        .select('*')
+                        .eq('project_id', id)
+                        .order('created_at', { ascending: true });
+                    if (photosError) throw photosError;
+                    setPhotos(photosData || []);
+                }
+            } catch {
+                const { data: photosData } = await supabase
+                    .from('photos')
+                    .select('*')
+                    .eq('project_id', id)
+                    .order('created_at', { ascending: true });
+                setPhotos(photosData || []);
+            }
 
             // カスタムテンプレートの取得
             const { data: templateData, error: templateError } = await supabase
@@ -209,10 +241,23 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                     const thumbStoragePath = `${project.folder_name}/thumb_${uniqueFilename}`;
 
                     try {
-                        // 1. サムネイルの生成
-                        const thumbBlob = await generateThumbnail(file);
+                        // 1. サーバーサイドでEXIFメタデータを除去
+                        const sanitizeForm = new FormData();
+                        sanitizeForm.append('file', file);
+                        const sanitizeRes = await fetch('/api/admin/upload/sanitize', {
+                            method: 'POST',
+                            body: sanitizeForm,
+                        });
+                        let sanitizedFile: File | Blob = file;
+                        if (sanitizeRes.ok) {
+                            const sanitizedBlob = await sanitizeRes.blob();
+                            sanitizedFile = new File([sanitizedBlob], file.name, { type: sanitizedBlob.type });
+                        }
 
-                        // 2. オリジナルとサムネイルの両方の Signed Upload URL を取得
+                        // 2. サムネイルの生成（メタデータ除去済みファイルから）
+                        const thumbBlob = await generateThumbnail(sanitizedFile instanceof File ? sanitizedFile : file);
+
+                        // 3. オリジナルとサムネイルの両方の Signed Upload URL を取得
                         const [initRes, thumbInitRes] = await Promise.all([
                             fetch('/api/admin/upload/init', {
                                 method: 'POST',
@@ -235,16 +280,16 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                         const thumbToken = thumbInitResult.data?.token;
                         if (!token || !thumbToken) throw new Error('No Signed URL Token');
 
-                        // 3. オリジナルとサムネイルを並行してアップロード
+                        // 4. オリジナル（メタデータ除去済み）とサムネイルを並行してアップロード
                         const [uploadOriginal, uploadThumb] = await Promise.all([
-                            supabase.storage.from('photos').uploadToSignedUrl(storagePath, token, file),
+                            supabase.storage.from('photos').uploadToSignedUrl(storagePath, token, sanitizedFile),
                             supabase.storage.from('photos').uploadToSignedUrl(thumbStoragePath, thumbToken, thumbBlob)
                         ]);
 
                         if (uploadOriginal.error) throw new Error(`Original upload failed: ${uploadOriginal.error.message}`);
                         if (uploadThumb.error) throw new Error(`Thumb upload failed: ${uploadThumb.error.message}`);
 
-                        // 4. Finalize APIを呼び出し Databaseに記録
+                        // 5. Finalize APIを呼び出し Databaseに記録
                         const finRes = await fetch('/api/admin/upload/finalize', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -550,7 +595,7 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                             <div>
                                 <p className="text-sm text-stone-500 mb-1">パスワード</p>
                                 <div className="font-mono bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-sm text-stone-700 inline-block">
-                                    {project.password ? project.password : <span className="text-stone-400 italic">なし</span>}
+                                    {project.password ? (decryptedPassword || '***') : <span className="text-stone-400 italic">なし</span>}
                                 </div>
                             </div>
 
@@ -679,7 +724,7 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                                     const text = templateText
                                         .replace(/{{customer_name}}/g, project.name)
                                         .replace(/{{url}}/g, `${window.location.origin}/p/${project.folder_name}`)
-                                        .replace(/{{password}}/g, project.password || '設定なし')
+                                        .replace(/{{password}}/g, decryptedPassword || '設定なし')
                                         .replace(/{{expiry_date}}/g, project.expires_at ? new Date(project.expires_at).toLocaleDateString('ja-JP') : '')
                                         .replace(/{{max_downloads}}/g, project.max_downloads?.toString() || '5');
                                     navigator.clipboard.writeText(text);

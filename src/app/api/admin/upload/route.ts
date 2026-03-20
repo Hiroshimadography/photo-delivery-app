@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { requireAdmin } from "@/utils/supabase/auth-guard";
+import { validateUploadFile, validateStoragePath } from "@/utils/file-validation";
+import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/utils/rate-limit";
+import { stripMetadata } from "@/utils/image-sanitize";
 
 // Initialize Supabase client with the Service Role Key for admin tasks
 const supabase = createClient(
@@ -15,6 +19,19 @@ const supabase = createClient(
 
 export async function POST(req: NextRequest) {
     try {
+        // Verify admin authentication
+        const auth = await requireAdmin(req);
+        if (!auth.authenticated) return auth.response;
+
+        // Rate limit uploads: 30 per minute
+        const rateCheck = checkRateLimit(`upload:${getClientIp(req)}`, RATE_LIMITS.UPLOAD);
+        if (!rateCheck.allowed) {
+            return NextResponse.json(
+                { error: "Too many upload requests" },
+                { status: 429, headers: { 'Retry-After': String(Math.ceil((rateCheck.retryAfterMs || 0) / 1000)) } }
+            );
+        }
+
         const formData = await req.formData();
         const file = formData.get('file') as File;
         const projectId = formData.get('projectId') as string;
@@ -24,10 +41,28 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        // 1. Upload to Supabase Storage (bypassing RLS with Service Role)
+        // Validate storage path
+        const pathCheck = validateStoragePath(storagePath);
+        if (!pathCheck.valid) {
+            return NextResponse.json({ error: pathCheck.error }, { status: 400 });
+        }
+
+        // Validate file (MIME type, size, magic bytes)
+        const fileCheck = await validateUploadFile(file);
+        if (!fileCheck.valid) {
+            return NextResponse.json({ error: fileCheck.error }, { status: 400 });
+        }
+
+        // 1. Strip EXIF metadata before uploading
+        const arrayBuffer = await file.arrayBuffer();
+        const sanitizedBuffer = await stripMetadata(arrayBuffer, file.type);
+
+        // 2. Upload sanitized file to Supabase Storage (bypassing RLS with Service Role)
         const { error: uploadError } = await supabase.storage
             .from('photos')
-            .upload(storagePath, file);
+            .upload(storagePath, sanitizedBuffer, {
+                contentType: file.type,
+            });
 
         if (uploadError) {
             console.error("Storage upload error:", uploadError);
