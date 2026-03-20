@@ -13,6 +13,9 @@
  *   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
  */
 
+import { loadEnvConfig } from '@next/env'
+loadEnvConfig(process.cwd())
+
 import { createClient } from '@supabase/supabase-js'
 import { encryptPassword, isEncrypted } from '../src/utils/crypto'
 

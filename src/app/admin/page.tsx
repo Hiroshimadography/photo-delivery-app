@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FolderPlus, Search, Eye, Download, Link as LinkIcon, Trash2, Plus, ChevronRight } from "lucide-react";
+import { FolderPlus, Search, Eye, Download, Link as LinkIcon, Trash2, Plus, ChevronRight, Shield, Lock, ImageOff, Timer, ShieldCheck, ServerCrash, FileCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -176,6 +176,68 @@ export default function AdminDashboard() {
                                 ))}
                         </div>
                     )}
+                </div>
+            </div>
+            {/* Security Features Section */}
+            <div className="mt-4">
+                <div className="flex items-center gap-2 mb-4">
+                    <Shield size={18} className="text-stone-400" />
+                    <h3 className="text-sm font-medium text-stone-400 tracking-wide uppercase">Security</h3>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {[
+                        {
+                            icon: Lock,
+                            title: "パスワード暗号化",
+                            desc: "納品パスワードはサーバー側で暗号化して保管",
+                        },
+                        {
+                            icon: ShieldCheck,
+                            title: "ブルートフォース対策",
+                            desc: "パスワード試行回数を制限し不正アクセスをブロック",
+                        },
+                        {
+                            icon: Timer,
+                            title: "URL自動失効",
+                            desc: "写真URLは短時間で自動失効し再利用を防止",
+                        },
+                        {
+                            icon: ImageOff,
+                            title: "メタデータ自動除去",
+                            desc: "GPS・撮影情報などのEXIFデータを自動削除",
+                        },
+                        {
+                            icon: FileCheck,
+                            title: "ファイル検証",
+                            desc: "アップロード時にファイル形式と内容を厳格に検証",
+                        },
+                        {
+                            icon: Download,
+                            title: "ダウンロード制限",
+                            desc: "回数制限と期限管理でデータ流出を防止",
+                        },
+                        {
+                            icon: Shield,
+                            title: "通信保護",
+                            desc: "HTTPS強制・セキュリティヘッダーによる多層防御",
+                        },
+                        {
+                            icon: ServerCrash,
+                            title: "不正リクエスト防止",
+                            desc: "CSRF・XSS・インジェクション攻撃を防御",
+                        },
+                    ].map((feature) => (
+                        <div
+                            key={feature.title}
+                            className="bg-white border border-stone-200 rounded-xl p-4 flex flex-col gap-2"
+                        >
+                            <div className="flex items-center gap-2">
+                                <feature.icon size={16} className="text-emerald-600 flex-shrink-0" />
+                                <span className="text-sm font-medium text-stone-700">{feature.title}</span>
+                            </div>
+                            <p className="text-xs text-stone-400 leading-relaxed">{feature.desc}</p>
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>
