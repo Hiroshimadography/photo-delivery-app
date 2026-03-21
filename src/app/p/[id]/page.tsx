@@ -33,7 +33,8 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
     const [project, setProject] = useState<Project | null>(null);
     const [photos, setPhotos] = useState<Photo[]>([]);
     const [settings, setSettings] = useState<BrandSettings | null>({ brand_name: "Hiroshimadography", logo_url: null });
-    const [isLoading, setIsLoading] = useState(false); // 初期表示は待たせない
+    const [isLoading, setIsLoading] = useState(true); // 初期ロード中はローディング表示
+    const [initialLoading, setInitialLoading] = useState(true); // 初回データ取得中フラグ
 
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [passwordInput, setPasswordInput] = useState("");
@@ -58,19 +59,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
             }
             setProject(data.project);
 
-            // パスワードが設定されていなければ最初から認証済みとし、写真を取得
-            if (!data.project.hasPassword) {
-                const photoRes = await fetch(`/api/delivery/${folder_name}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password: '' })
-                });
-                const photoData = await photoRes.json();
-                if (photoData.success) {
-                    setPhotos(photoData.photos);
-                    setIsAuthenticated(true);
-                }
-            }
+            // パスワードなしの場合はTOPページにボタンを表示（自動認証しない）
 
             // 3. ブランド設定の反映
             if (data.settings && data.settings.brand_name) {
@@ -86,6 +75,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
             console.error(err);
         } finally {
             setIsLoading(false);
+            setInitialLoading(false);
         }
     };
 
@@ -101,7 +91,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                 body: JSON.stringify({ password: passwordInput })
             });
             const data = await res.json();
-            
+
             if (data.success) {
                 setPhotos(data.photos);
                 setIsAuthenticated(true);
@@ -112,6 +102,26 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
         } catch (err) {
             console.error(err);
             setError(true);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleEnterWithoutPassword = async () => {
+        setIsLoading(true);
+        try {
+            const res = await fetch(`/api/delivery/${folder_name}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: '' })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setPhotos(data.photos);
+                setIsAuthenticated(true);
+            }
+        } catch (err) {
+            console.error('Enter failed:', err);
         } finally {
             setIsLoading(false);
         }
@@ -257,6 +267,27 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
         }
     };
 
+    // 初期ロード中はローディング表示
+    if (initialLoading) {
+        return (
+            <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center">
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.5 }}
+                    className="text-center"
+                >
+                    {settings?.logo_url ? (
+                        <img src={settings.logo_url} alt={settings.brand_name} className="max-h-12 mx-auto mb-8 object-contain" />
+                    ) : (
+                        <h1 className="text-sm tracking-[0.3em] text-stone-400 mb-8 font-medium">{settings?.brand_name || "Hiroshimadography"}</h1>
+                    )}
+                    <div className="w-8 h-8 border-2 border-stone-300 border-t-stone-600 rounded-full animate-spin mx-auto" />
+                </motion.div>
+            </div>
+        );
+    }
+
     if (!isAuthenticated) {
         // もし写真があれば1枚目をカバー画像として使用（なければデフォルトの画像等）
         const coverImage = photos.length > 0 ? photos[0].url : "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=2069&auto=format&fit=crop";
@@ -290,30 +321,55 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                     </h2>
                     <div className="w-12 h-px bg-stone-300 mx-auto my-6" />
 
-                    <p className="text-stone-500 mb-8 font-serif leading-loose text-sm">
-                        パスワードを入力して<br />ギャラリーへお進みください
-                    </p>
+                    {project?.hasPassword ? (
+                        <>
+                            <p className="text-stone-500 mb-8 font-serif leading-loose text-sm">
+                                パスワードを入力して<br />ギャラリーへお進みください
+                            </p>
 
-                    <form onSubmit={handleLogin} className="space-y-6">
-                        <div>
-                            <input
-                                type="password"
-                                value={passwordInput}
-                                onChange={(e) => { setPasswordInput(e.target.value); setError(false); }}
-                                className={`w-full text-center tracking-widest px-4 py-3 bg-white/50 border-b-2 ${error ? 'border-red-300' : 'border-stone-300'} focus:outline-none focus:border-stone-600 transition-colors rounded-t-sm`}
-                                placeholder="PASSWORD"
-                            />
-                            {error && <p className="text-red-400 text-xs mt-2 font-medium tracking-wider">パスワードが正しくありません</p>}
-                        </div>
+                            <form onSubmit={handleLogin} className="space-y-6">
+                                <div>
+                                    <input
+                                        type="password"
+                                        value={passwordInput}
+                                        onChange={(e) => { setPasswordInput(e.target.value); setError(false); }}
+                                        className={`w-full text-center tracking-widest px-4 py-3 bg-white/50 border-b-2 ${error ? 'border-red-300' : 'border-stone-300'} focus:outline-none focus:border-stone-600 transition-colors rounded-t-sm`}
+                                        placeholder="PASSWORD"
+                                    />
+                                    {error && <p className="text-red-400 text-xs mt-2 font-medium tracking-wider">パスワードが正しくありません</p>}
+                                </div>
 
-                        <button
-                            type="submit"
-                            className="w-full bg-stone-900 hover:bg-stone-800 text-white tracking-widest py-4 transition-colors text-sm uppercase flex items-center justify-center gap-2 group"
-                        >
-                            <span>Enter Gallery</span>
-                            <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                        </button>
-                    </form>
+                                <button
+                                    type="submit"
+                                    className="w-full bg-stone-900 hover:bg-stone-800 text-white tracking-widest py-4 transition-colors text-sm uppercase flex items-center justify-center gap-2 group"
+                                >
+                                    <span>Enter Gallery</span>
+                                    <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                                </button>
+                            </form>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-stone-500 mb-8 font-serif leading-loose text-sm">
+                                お写真の閲覧・ダウンロードが<br />可能です
+                            </p>
+
+                            <button
+                                onClick={handleEnterWithoutPassword}
+                                disabled={isLoading}
+                                className="w-full bg-stone-900 hover:bg-stone-800 text-white tracking-widest py-4 transition-colors text-sm flex items-center justify-center gap-2 group disabled:opacity-50"
+                            >
+                                {isLoading ? (
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    <>
+                                        <span>写真はこちら</span>
+                                        <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                                    </>
+                                )}
+                            </button>
+                        </>
+                    )}
                 </motion.div>
             </div>
         );
