@@ -18,8 +18,8 @@ export async function POST(req: NextRequest) {
         const auth = await requireAdmin(req);
         if (!auth.authenticated) return auth.response;
 
-        const { projectId, storagePath } = await req.json();
-        
+        const { projectId, storagePath, originalFilename } = await req.json();
+
         if (!projectId || !storagePath) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
@@ -63,7 +63,8 @@ export async function POST(req: NextRequest) {
                 {
                     project_id: projectId,
                     storage_path: storagePath,
-                    url: thumbUrl
+                    url: thumbUrl,
+                    original_filename: originalFilename || null
                 }
             ]);
 
