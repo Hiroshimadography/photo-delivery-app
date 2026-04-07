@@ -31,7 +31,6 @@ CREATE TABLE photos (
   project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
   storage_path TEXT NOT NULL,
   url TEXT NOT NULL,
-  original_filename TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

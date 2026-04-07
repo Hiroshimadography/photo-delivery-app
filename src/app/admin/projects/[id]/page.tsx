@@ -225,7 +225,7 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
         isPausedRef.current = false;
         
         const queue = [...files];
-        const concurrency = 6; // 同時アップロード数
+        const concurrency = 4; // 同時アップロード数
 
         try {
             const processQueue = async () => {
@@ -241,16 +241,24 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                     const thumbStoragePath = `${project.folder_name}/thumb_${uniqueFilename}`;
 
                     try {
-                        // 1. サニタイズ・サムネイル生成・署名付きURL取得を並列実行
+                        // 1. サーバーサイドでEXIFメタデータを除去
                         const sanitizeForm = new FormData();
                         sanitizeForm.append('file', file);
+                        const sanitizeRes = await fetch('/api/admin/upload/sanitize', {
+                            method: 'POST',
+                            body: sanitizeForm,
+                        });
+                        let sanitizedFile: File | Blob = file;
+                        if (sanitizeRes.ok) {
+                            const sanitizedBlob = await sanitizeRes.blob();
+                            sanitizedFile = new File([sanitizedBlob], file.name, { type: sanitizedBlob.type });
+                        }
 
-                        const [sanitizeRes, thumbBlob, initRes, thumbInitRes] = await Promise.all([
-                            fetch('/api/admin/upload/sanitize', {
-                                method: 'POST',
-                                body: sanitizeForm,
-                            }),
-                            generateThumbnail(file),
+                        // 2. サムネイルの生成（メタデータ除去済みファイルから）
+                        const thumbBlob = await generateThumbnail(sanitizedFile instanceof File ? sanitizedFile : file);
+
+                        // 3. オリジナルとサムネイルの両方の Signed Upload URL を取得
+                        const [initRes, thumbInitRes] = await Promise.all([
                             fetch('/api/admin/upload/init', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -263,22 +271,16 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                             })
                         ]);
 
-                        let sanitizedFile: File | Blob = file;
-                        if (sanitizeRes.ok) {
-                            const sanitizedBlob = await sanitizeRes.blob();
-                            sanitizedFile = new File([sanitizedBlob], file.name, { type: sanitizedBlob.type });
-                        }
-
                         if (!initRes.ok || !thumbInitRes.ok) throw new Error('Init API failed');
-
+                        
                         const initResult = await initRes.json();
                         const thumbInitResult = await thumbInitRes.json();
-
+                        
                         const token = initResult.data?.token;
                         const thumbToken = thumbInitResult.data?.token;
                         if (!token || !thumbToken) throw new Error('No Signed URL Token');
 
-                        // 2. オリジナル（メタデータ除去済み）とサムネイルを並行してアップロード
+                        // 4. オリジナル（メタデータ除去済み）とサムネイルを並行してアップロード
                         const [uploadOriginal, uploadThumb] = await Promise.all([
                             supabase.storage.from('photos').uploadToSignedUrl(storagePath, token, sanitizedFile),
                             supabase.storage.from('photos').uploadToSignedUrl(thumbStoragePath, thumbToken, thumbBlob)
@@ -287,11 +289,11 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                         if (uploadOriginal.error) throw new Error(`Original upload failed: ${uploadOriginal.error.message}`);
                         if (uploadThumb.error) throw new Error(`Thumb upload failed: ${uploadThumb.error.message}`);
 
-                        // 3. Finalize APIを呼び出し Databaseに記録
+                        // 5. Finalize APIを呼び出し Databaseに記録
                         const finRes = await fetch('/api/admin/upload/finalize', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ projectId: project.id, storagePath, originalFilename: file.name }),
+                            body: JSON.stringify({ projectId: project.id, storagePath }),
                         });
                         if (!finRes.ok) throw new Error('Finalize API failed');
 

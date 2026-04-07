@@ -179,7 +179,6 @@ export async function POST(
             .from('photos')
             .select('*')
             .eq('project_id', project.id)
-            .order('original_filename', { ascending: true, nullsFirst: false })
             .order('created_at', { ascending: true });
 
         if (photosError) throw photosError;
