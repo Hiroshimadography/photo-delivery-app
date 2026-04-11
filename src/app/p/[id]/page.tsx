@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, use, useEffect } from "react";
-import { Lock, Download, CheckSquare, Square, ChevronRight } from "lucide-react";
+import { Download, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 
@@ -79,8 +79,6 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
         }
     };
 
-    const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
-
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
@@ -127,16 +125,6 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
         }
     };
 
-    const togglePhotoSelection = (photoId: string) => {
-        const newSet = new Set(selectedPhotos);
-        if (newSet.has(photoId)) {
-            newSet.delete(photoId);
-        } else {
-            newSet.add(photoId);
-        }
-        setSelectedPhotos(newSet);
-    };
-
     const [isDownloading, setIsDownloading] = useState(false);
     const [downloadProgress, setDownloadProgress] = useState(0);
     const [downloadStatus, setDownloadStatus] = useState<'preparing' | 'downloading'>('preparing');
@@ -158,7 +146,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
     };
 
     // サーバーサイドでZIPを生成 → Blobダウンロード（iOS Safari完全対応）
-    const downloadViaServer = async (action: 'all' | 'selected', photoIds?: string[]) => {
+    const downloadAll = async () => {
         setIsDownloading(true);
         setDownloadProgress(0);
         setDownloadStatus('preparing');
@@ -169,7 +157,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
             const res = await fetch(`/api/delivery/${folder_name}/download-zip`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action, photoIds })
+                body: JSON.stringify({ action: 'all' })
             });
 
             const data = await res.json();
@@ -182,9 +170,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
             setDownloadProgress(50);
             setDownloadStatus('downloading');
 
-            const zipFilename = action === 'selected'
-                ? `${folder_name}_selected.zip`
-                : `${folder_name}_all.zip`;
+            const zipFilename = `${folder_name}_all.zip`;
 
             // 署名付きURLからBlobとしてダウンロード → ファイルアプリに確実に保存
             try {
@@ -251,8 +237,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
     const [downloadingPhotoId, setDownloadingPhotoId] = useState<string | null>(null);
 
     // 個別写真ダウンロード（JPEG/PNGを直接保存）
-    const handleDownloadSingle = async (e: React.MouseEvent, photoId: string, index: number) => {
-        e.stopPropagation(); // 選択トグルを防止
+    const handleDownloadSingle = async (photoId: string, index: number) => {
         if (downloadingPhotoId) return;
         setDownloadingPhotoId(photoId);
         try {
@@ -292,13 +277,8 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
         }
     };
 
-    const handleDownloadSelected = async () => {
-        if (selectedPhotos.size === 0) return;
-        await downloadViaServer('selected', Array.from(selectedPhotos));
-    };
-
     const handleDownloadAll = async () => {
-        await downloadViaServer('all');
+        await downloadAll();
     };
 
     // 初期ロード中はローディング表示
@@ -482,9 +462,9 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                 <div className="sticky top-24 z-30 bg-white shadow-lg shadow-stone-200/20 border border-stone-200/60 rounded-xl p-4 md:p-6 mb-12 flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-xl">
                     <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left w-full sm:w-auto">
                         <div className="text-stone-600 text-sm font-medium">
-                            {selectedPhotos.size > 0 ? `${selectedPhotos.size}枚の写真を選択中` : '写真を選択してダウンロード可能です'}
+                            各写真のダウンロードボタン、または一括保存をご利用ください
                         </div>
-                        
+
                         {project?.max_downloads !== undefined && project?.download_count !== undefined && (
                             <div className="flex items-center gap-2 bg-stone-50 px-3 py-1.5 rounded-full border border-stone-200">
                                 <Download size={14} className="text-stone-400" />
@@ -496,14 +476,6 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                     </div>
 
                     <div className="flex w-full sm:w-auto gap-3">
-                        <button
-                            onClick={handleDownloadSelected}
-                            disabled={selectedPhotos.size === 0 || isDownloading}
-                            className="flex-1 sm:flex-none px-6 py-3 border border-stone-300 text-stone-700 bg-white hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
-                        >
-                            <Download size={16} className={isDownloading ? "animate-bounce" : ""} />
-                            {isDownloading ? "準備中..." : `選択保存 (${selectedPhotos.size})`}
-                        </button>
                         <button
                             onClick={handleDownloadAll}
                             disabled={isDownloading}
@@ -517,54 +489,42 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
 
                 {/* Gallery Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8">
-                    {photos.map((photo, i) => {
-                        const isSelected = selectedPhotos.has(photo.id);
-                        return (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.6, delay: i * 0.05 }}
-                                key={photo.id}
-                                className="group relative aspect-[4/5] overflow-hidden bg-stone-100 cursor-pointer"
-                                onClick={() => togglePhotoSelection(photo.id)}
-                            >
-                                <img
-                                    src={photo.thumbUrl || photo.url}
-                                    alt=""
-                                    className={`w-full h-full object-cover transition-all duration-700 ${isSelected ? 'scale-105 opacity-90' : 'group-hover:scale-105 group-hover:opacity-90'}`}
-                                    loading="lazy"
-                                    onError={(e) => {
-                                        if (photo.url && e.currentTarget.src !== photo.url) {
-                                            e.currentTarget.src = photo.url;
-                                        }
-                                    }}
-                                />
+                    {photos.map((photo, i) => (
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.6, delay: i * 0.05 }}
+                            key={photo.id}
+                            className="group relative aspect-[4/5] overflow-hidden bg-stone-100"
+                        >
+                            <img
+                                src={photo.thumbUrl || photo.url}
+                                alt=""
+                                className="w-full h-full object-cover transition-all duration-700 group-hover:scale-105 group-hover:opacity-90"
+                                loading="lazy"
+                                onError={(e) => {
+                                    if (photo.url && e.currentTarget.src !== photo.url) {
+                                        e.currentTarget.src = photo.url;
+                                    }
+                                }}
+                            />
 
-                                {/* Selection Overlay */}
-                                <div className={`absolute inset-0 border-4 transition-colors duration-300 ${isSelected ? 'border-stone-900' : 'border-transparent group-hover:border-stone-200/50'}`}>
-                                    <div className="absolute top-4 right-4">
-                                        <div className={`w-6 h-6 rounded-full border border-white shadow-sm flex items-center justify-center transition-colors ${isSelected ? 'bg-stone-900 text-white' : 'bg-black/20 text-transparent'}`}>
-                                            {isSelected && <CheckSquare size={14} className="text-white fill-white" />}
-                                        </div>
-                                    </div>
-                                    {/* Individual Download Button */}
-                                    <button
-                                        onClick={(e) => handleDownloadSingle(e, photo.id, i)}
-                                        disabled={downloadingPhotoId === photo.id}
-                                        className="absolute bottom-3 right-3 w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 md:opacity-0 active:opacity-100 backdrop-blur-sm disabled:opacity-70"
-                                        style={{ opacity: downloadingPhotoId === photo.id ? 1 : undefined }}
-                                        title="この写真をダウンロード"
-                                    >
-                                        {downloadingPhotoId === photo.id ? (
-                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        ) : (
-                                            <Download size={16} />
-                                        )}
-                                    </button>
-                                </div>
-                            </motion.div>
-                        );
-                    })}
+                            {/* Individual Download Button */}
+                            <button
+                                onClick={() => handleDownloadSingle(photo.id, i)}
+                                disabled={downloadingPhotoId === photo.id}
+                                className="absolute bottom-3 right-3 w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 md:opacity-0 active:opacity-100 backdrop-blur-sm disabled:opacity-70"
+                                style={{ opacity: downloadingPhotoId === photo.id ? 1 : undefined }}
+                                title="この写真をダウンロード"
+                            >
+                                {downloadingPhotoId === photo.id ? (
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    <Download size={16} />
+                                )}
+                            </button>
+                        </motion.div>
+                    ))}
                 </div>
             </main>
 
@@ -573,7 +533,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                 <div className="bg-white shadow-lg shadow-stone-200/20 border border-stone-200/60 rounded-xl p-4 md:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-xl">
                     <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left w-full sm:w-auto">
                         <div className="text-stone-600 text-sm font-medium">
-                            {selectedPhotos.size > 0 ? `${selectedPhotos.size}枚の写真を選択中` : '写真を選択してダウンロード可能です'}
+                            各写真のダウンロードボタン、または一括保存をご利用ください
                         </div>
                         {project?.max_downloads !== undefined && project?.download_count !== undefined && (
                             <div className="flex items-center gap-2 bg-stone-50 px-3 py-1.5 rounded-full border border-stone-200">
@@ -592,14 +552,6 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                             title="ページトップへ"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6" /></svg>
-                        </button>
-                        <button
-                            onClick={handleDownloadSelected}
-                            disabled={selectedPhotos.size === 0 || isDownloading}
-                            className="flex-1 sm:flex-none px-6 py-3 border border-stone-300 text-stone-700 bg-white hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
-                        >
-                            <Download size={16} className={isDownloading ? "animate-bounce" : ""} />
-                            {isDownloading ? "準備中..." : `選択保存 (${selectedPhotos.size})`}
                         </button>
                         <button
                             onClick={handleDownloadAll}
