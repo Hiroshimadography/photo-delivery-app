@@ -139,132 +139,166 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
 
     const [isDownloading, setIsDownloading] = useState(false);
     const [downloadProgress, setDownloadProgress] = useState(0);
+    const [downloadStatus, setDownloadStatus] = useState<'preparing' | 'downloading'>('preparing');
 
-    // ユーティリティ: URLからBlobを取得する
-    const fetchImageAsBlob = async (url: string) => {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error("Network response was not ok");
-        return await response.blob();
+    // Blob + <a> タグによるダウンロード（iOS Safari でファイルアプリに確実に保存される）
+    const triggerBlobDownload = (blob: Blob, filename: string) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        // iOS Safariではクリック後すぐにrevokeするとダウンロードが失敗するため遅延
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }, 5000);
     };
 
-    const trackDownload = async (action: string) => {
+    // サーバーサイドでZIPを生成 → Blobダウンロード（iOS Safari完全対応）
+    const downloadViaServer = async (action: 'all' | 'selected', photoIds?: string[]) => {
+        setIsDownloading(true);
+        setDownloadProgress(0);
+        setDownloadStatus('preparing');
         try {
-            const res = await fetch(`/api/delivery/${folder_name}/download`, {
+            setDownloadProgress(10);
+
+            // サーバーにZIP生成をリクエスト
+            const res = await fetch(`/api/delivery/${folder_name}/download-zip`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action })
+                body: JSON.stringify({ action, photoIds })
             });
+
             const data = await res.json();
-            if (!data.success) {
-                alert(data.message || 'ダウンロード制限に達したか、エラーが発生しました。');
-                return false;
+
+            if (!res.ok || !data.success) {
+                alert(data?.message || 'ダウンロード中にエラーが発生しました。');
+                return;
             }
-            
-            // 成功したらローカルのカウントを１増やす（UI即時反映のため）
+
+            setDownloadProgress(50);
+            setDownloadStatus('downloading');
+
+            const zipFilename = action === 'selected'
+                ? `${folder_name}_selected.zip`
+                : `${folder_name}_all.zip`;
+
+            // 署名付きURLからBlobとしてダウンロード → ファイルアプリに確実に保存
+            try {
+                const zipRes = await fetch(data.downloadUrl);
+                if (!zipRes.ok) throw new Error('Download failed');
+
+                const contentLength = zipRes.headers.get('Content-Length');
+                const total = contentLength ? parseInt(contentLength, 10) : 0;
+
+                // ReadableStreamが使える場合はプログレス追跡
+                if (zipRes.body && total > 0) {
+                    const reader = zipRes.body.getReader();
+                    const chunks: Uint8Array[] = [];
+                    let received = 0;
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        chunks.push(value);
+                        received += value.length;
+                        // 50-95%の範囲でダウンロード進捗を表示
+                        setDownloadProgress(50 + Math.floor((received / total) * 45));
+                    }
+
+                    const blob = new Blob(chunks, { type: 'application/zip' });
+                    triggerBlobDownload(blob, zipFilename);
+                } else {
+                    // フォールバック: ReadableStream非対応 or Content-Length不明
+                    const blob = await zipRes.blob();
+                    triggerBlobDownload(blob, zipFilename);
+                }
+
+                setDownloadProgress(100);
+            } catch (blobError) {
+                // CORS等でfetchできない場合は<a>タグで直接ダウンロード（フォールバック）
+                console.warn('Blob download failed, falling back to link download:', blobError);
+                const a = document.createElement('a');
+                a.href = data.downloadUrl;
+                a.download = zipFilename;
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => document.body.removeChild(a), 1000);
+                setDownloadProgress(100);
+            }
+
+            // ダウンロードカウントをUI上で更新
             if (project) {
                 setProject({ ...project, download_count: (project.download_count || 0) + 1 });
             }
-            
-            return true;
-        } catch (e) {
-            alert('通信エラーが発生しました。');
-            return false;
-        }
-    };
-
-    const handleDownloadSelected = async () => {
-        if (selectedPhotos.size === 0) return;
-        setIsDownloading(true);
-        setDownloadProgress(0);
-        try {
-            const canDownload = await trackDownload('selected');
-            if (!canDownload) return;
-
-            const JSZip = (await import("jszip")).default;
-            const { saveAs } = (await import("file-saver")).default;
-            const zip = new JSZip();
-
-            const selectedArray = Array.from(selectedPhotos);
-            let count = 0;
-
-            // 5枚ずつ並行してフェッチし、速度とメモリのバランスを取る
-            const batchSize = 5;
-            for (let i = 0; i < selectedArray.length; i += batchSize) {
-                const chunk = selectedArray.slice(i, i + batchSize);
-                
-                const promises = chunk.map(async (photoId) => {
-                    const photo = photos.find(p => p.id === photoId);
-                    if (photo) {
-                        try {
-                            const blob = await fetchImageAsBlob(photo.url);
-                            zip.file(`photo-${selectedArray.indexOf(photoId) + 1}.jpg`, blob);
-                        } catch (e) {
-                             console.error("Failed to download photo:", photo.url, e);
-                        }
-                    }
-                });
-
-                await Promise.all(promises);
-                count += chunk.length;
-                setDownloadProgress(Math.round((count / selectedArray.length) * 100));
-            }
-
-            setDownloadProgress(100);
-            const content = await zip.generateAsync({ type: "blob" });
-            saveAs(content, `${project?.folder_name || 'download'}_selected.zip`);
 
         } catch (err) {
             console.error(err);
             alert("ダウンロード中にエラーが発生しました。");
         } finally {
-            setIsDownloading(false);
-            setDownloadProgress(0);
+            setTimeout(() => {
+                setIsDownloading(false);
+                setDownloadProgress(0);
+                setDownloadStatus('preparing');
+            }, 3000);
         }
     };
 
-    const handleDownloadAll = async () => {
-        setIsDownloading(true);
-        setDownloadProgress(0);
+    const [downloadingPhotoId, setDownloadingPhotoId] = useState<string | null>(null);
+
+    // 個別写真ダウンロード（JPEG/PNGを直接保存）
+    const handleDownloadSingle = async (e: React.MouseEvent, photoId: string, index: number) => {
+        e.stopPropagation(); // 選択トグルを防止
+        if (downloadingPhotoId) return;
+        setDownloadingPhotoId(photoId);
         try {
-            const canDownload = await trackDownload('all');
-            if (!canDownload) return;
-
-            const JSZip = (await import("jszip")).default;
-            const { saveAs } = (await import("file-saver")).default;
-            const zip = new JSZip();
-
-            let count = 0;
-            // 5件ずつチャンクでフェッチして速度とメモリ消費のバランスを取る
-            const batchSize = 5;
-            for (let i = 0; i < photos.length; i += batchSize) {
-                const chunk = photos.slice(i, i + batchSize);
-                
-                const promises = chunk.map(async (photo, index) => {
-                    const globalIndex = i + index;
-                    try {
-                        const blob = await fetchImageAsBlob(photo.url);
-                        zip.file(`img_${String(globalIndex + 1).padStart(3, '0')}.jpg`, blob);
-                    } catch (e) {
-                        console.error("Failed to download photo:", photo.url, e);
-                    }
-                });
-
-                await Promise.all(promises);
-                count += chunk.length;
-                setDownloadProgress(Math.round((count / photos.length) * 100));
+            const res = await fetch(`/api/delivery/${folder_name}/download-single`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ photoId })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                alert(data?.message || 'ダウンロード中にエラーが発生しました。');
+                return;
             }
 
-            setDownloadProgress(100);
-            const content = await zip.generateAsync({ type: "blob" });
-            saveAs(content, `${project?.folder_name || 'download'}_all.zip`);
+            const filename = data.filename || `photo_${String(index + 1).padStart(3, '0')}.jpg`;
 
+            try {
+                const photoRes = await fetch(data.downloadUrl);
+                if (!photoRes.ok) throw new Error('Download failed');
+                const blob = await photoRes.blob();
+                triggerBlobDownload(blob, filename);
+            } catch {
+                // CORS等でfetch失敗時は<a>タグで直接ダウンロード
+                const a = document.createElement('a');
+                a.href = data.downloadUrl;
+                a.download = filename;
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => document.body.removeChild(a), 1000);
+            }
         } catch (err) {
             console.error(err);
-            alert("一括ダウンロード中にエラーが発生しました。");
+            alert('ダウンロード中にエラーが発生しました。');
         } finally {
-            setIsDownloading(false);
-            setDownloadProgress(0);
+            setDownloadingPhotoId(null);
         }
+    };
+
+    const handleDownloadSelected = async () => {
+        if (selectedPhotos.size === 0) return;
+        await downloadViaServer('selected', Array.from(selectedPhotos));
+    };
+
+    const handleDownloadAll = async () => {
+        await downloadViaServer('all');
     };
 
     // 初期ロード中はローディング表示
@@ -406,8 +440,12 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                         >
                             <div className="bg-white p-10 rounded-2xl shadow-2xl border border-stone-200 flex flex-col items-center text-center max-w-sm w-full mx-4">
                                 <div className="w-16 h-16 border-4 border-stone-200 border-t-stone-800 rounded-full animate-spin mb-8" />
-                                <h3 className="text-xl font-medium text-stone-800 mb-2 font-serif tracking-wider">ダウンロード中</h3>
-                                <p className="text-stone-500 mb-6 text-sm">写真のデータをまとめています...</p>
+                                <h3 className="text-xl font-medium text-stone-800 mb-2 font-serif tracking-wider">
+                                    {downloadStatus === 'preparing' ? 'データ準備中' : 'ダウンロード中'}
+                                </h3>
+                                <p className="text-stone-500 mb-6 text-sm">
+                                    {downloadStatus === 'preparing' ? '写真のデータをまとめています...' : 'ファイルを保存しています...'}
+                                </p>
                                 
                                 <div className="w-full bg-stone-100 rounded-full h-2.5 mb-2 overflow-hidden">
                                     <div 
@@ -509,6 +547,20 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                                             {isSelected && <CheckSquare size={14} className="text-white fill-white" />}
                                         </div>
                                     </div>
+                                    {/* Individual Download Button */}
+                                    <button
+                                        onClick={(e) => handleDownloadSingle(e, photo.id, i)}
+                                        disabled={downloadingPhotoId === photo.id}
+                                        className="absolute bottom-3 right-3 w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 md:opacity-0 active:opacity-100 backdrop-blur-sm disabled:opacity-70"
+                                        style={{ opacity: downloadingPhotoId === photo.id ? 1 : undefined }}
+                                        title="この写真をダウンロード"
+                                    >
+                                        {downloadingPhotoId === photo.id ? (
+                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        ) : (
+                                            <Download size={16} />
+                                        )}
+                                    </button>
                                 </div>
                             </motion.div>
                         );
