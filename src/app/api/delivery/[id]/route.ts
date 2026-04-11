@@ -25,7 +25,7 @@ export async function GET(
 
         const { data: project, error } = await supabaseAdmin
             .from('projects')
-            .select('id, name, password, download_count, max_downloads, expires_at, status')
+            .select('id, name, password, expires_at, status')
             .eq('folder_name', id)
             .single();
 
@@ -36,8 +36,6 @@ export async function GET(
         // Check if project is expired or inactive
         const isExpired = project.expires_at && new Date(project.expires_at) < new Date();
         const isInactive = project.status !== 'active';
-        const isDownloadLimitReached = project.download_count >= project.max_downloads;
-
         if (isExpired || isInactive) {
             return NextResponse.json({
                 success: false,
@@ -63,9 +61,6 @@ export async function GET(
                 id: project.id,
                 name: project.name,
                 hasPassword: !!project.password,
-                download_count: project.download_count,
-                max_downloads: project.max_downloads,
-                isDownloadLimitReached: isDownloadLimitReached,
             },
             settings: {
                 brand_name: brandSettings?.brand_name || "Hiroshimadography",
@@ -148,14 +143,6 @@ export async function POST(
             resource_id: project.id,
         });
 
-        // Check download limit before generating signed URLs
-        if (project.download_count >= project.max_downloads) {
-            return NextResponse.json({
-                success: false,
-                message: 'ダウンロード回数の上限に達しました。',
-            }, { status: 403 });
-        }
-
         // Check project expiration
         if (project.expires_at && new Date(project.expires_at) < new Date()) {
             return NextResponse.json({
@@ -211,8 +198,6 @@ export async function POST(
                 id: project.id,
                 name: project.name,
                 folder_name: project.folder_name,
-                download_count: project.download_count,
-                max_downloads: project.max_downloads
             },
             settings: {
                 brand_name: brandSettings?.brand_name || "Hiroshimadography",

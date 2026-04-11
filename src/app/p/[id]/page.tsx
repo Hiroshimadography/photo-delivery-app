@@ -12,8 +12,6 @@ type Project = {
     hasPassword?: boolean;
     expires_at?: string | null;
     status?: string;
-    download_count?: number;
-    max_downloads?: number;
 };
 
 type Photo = {
@@ -215,11 +213,6 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                 a.click();
                 setTimeout(() => document.body.removeChild(a), 1000);
                 setDownloadProgress(100);
-            }
-
-            // ダウンロードカウントをUI上で更新
-            if (project) {
-                setProject({ ...project, download_count: (project.download_count || 0) + 1 });
             }
 
         } catch (err) {
@@ -460,31 +453,18 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
 
                 {/* Action Bar (Sticky) */}
                 <div className="sticky top-24 z-30 bg-white shadow-lg shadow-stone-200/20 border border-stone-200/60 rounded-xl p-4 md:p-6 mb-12 flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-xl">
-                    <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left w-full sm:w-auto">
-                        <div className="text-stone-600 text-sm font-medium">
-                            各写真のダウンロードボタン、または一括保存をご利用ください
-                        </div>
-
-                        {project?.max_downloads !== undefined && project?.download_count !== undefined && (
-                            <div className="flex items-center gap-2 bg-stone-50 px-3 py-1.5 rounded-full border border-stone-200">
-                                <Download size={14} className="text-stone-400" />
-                                <span className="text-xs font-medium text-stone-600">
-                                    ダウンロード: <span className="text-stone-900">{project.download_count} / {project.max_downloads}回</span>
-                                </span>
-                            </div>
-                        )}
+                    <div className="text-stone-600 text-sm font-medium">
+                        各写真のダウンロードボタン、または一括保存をご利用ください
                     </div>
 
-                    <div className="flex w-full sm:w-auto gap-3">
-                        <button
-                            onClick={handleDownloadAll}
-                            disabled={isDownloading}
-                            className="flex-1 sm:flex-none px-6 py-3 bg-stone-900 hover:bg-stone-800 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-md"
-                        >
-                            <Download size={16} className={isDownloading ? "animate-bounce" : ""} />
-                            {isDownloading ? "準備中..." : "一括保存"}
-                        </button>
-                    </div>
+                    <button
+                        onClick={handleDownloadAll}
+                        disabled={isDownloading}
+                        className="px-6 py-3 bg-stone-900 hover:bg-stone-800 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-md"
+                    >
+                        <Download size={16} className={isDownloading ? "animate-bounce" : ""} />
+                        {isDownloading ? "準備中..." : "一括保存"}
+                    </button>
                 </div>
 
                 {/* Gallery Grid */}
@@ -531,18 +511,8 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
             {/* Bottom Action Bar */}
             <div className="max-w-7xl mx-auto px-6 mb-20">
                 <div className="bg-white shadow-lg shadow-stone-200/20 border border-stone-200/60 rounded-xl p-4 md:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-xl">
-                    <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left w-full sm:w-auto">
-                        <div className="text-stone-600 text-sm font-medium">
-                            各写真のダウンロードボタン、または一括保存をご利用ください
-                        </div>
-                        {project?.max_downloads !== undefined && project?.download_count !== undefined && (
-                            <div className="flex items-center gap-2 bg-stone-50 px-3 py-1.5 rounded-full border border-stone-200">
-                                <Download size={14} className="text-stone-400" />
-                                <span className="text-xs font-medium text-stone-600">
-                                    残り <span className="text-stone-900">{Math.max(0, project.max_downloads - project.download_count)}</span> 回
-                                </span>
-                            </div>
-                        )}
+                    <div className="text-stone-600 text-sm font-medium">
+                        各写真のダウンロードボタン、または一括保存をご利用ください
                     </div>
 
                     <div className="flex w-full sm:w-auto gap-3">

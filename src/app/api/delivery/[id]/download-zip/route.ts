@@ -38,19 +38,12 @@ export async function POST(
         // Fetch project
         const { data: project, error } = await supabaseAdmin
             .from('projects')
-            .select('id, folder_name, download_count, max_downloads')
+            .select('id, folder_name')
             .eq('folder_name', id)
             .single();
 
         if (error || !project) {
             return NextResponse.json({ success: false, message: 'Project not found' }, { status: 404 });
-        }
-
-        if (project.download_count >= project.max_downloads) {
-            return NextResponse.json({
-                success: false,
-                message: 'ダウンロード回数の上限に達しました。',
-            }, { status: 403 });
         }
 
         // Fetch photos from DB
@@ -69,16 +62,13 @@ export async function POST(
             return NextResponse.json({ success: false, message: 'No photos found' }, { status: 404 });
         }
 
-        // Increment download count and log
+        // Log download
         const sanitizedAction = ['all', 'selected'].includes(action) ? action : 'download';
-        await Promise.all([
-            supabaseAdmin.rpc('increment_download_count', { p_id: project.id }),
-            supabaseAdmin.from('download_logs').insert([{
-                project_id: project.id,
-                ip_address: clientIp,
-                action: sanitizedAction,
-            }]),
-        ]);
+        await supabaseAdmin.from('download_logs').insert([{
+            project_id: project.id,
+            ip_address: clientIp,
+            action: sanitizedAction,
+        }]);
 
         // ====== ZIPをサーバーサイドで生成 ======
         const zip = new JSZip();

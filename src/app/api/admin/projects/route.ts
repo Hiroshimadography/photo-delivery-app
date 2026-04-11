@@ -4,7 +4,7 @@ import { requireAdmin } from "@/utils/supabase/auth-guard";
 import { encryptPassword } from "@/utils/crypto";
 import { recordAuditLog } from "@/utils/audit-log";
 import { getClientIp } from "@/utils/rate-limit";
-import { sanitizeProjectName, sanitizeMemo, sanitizePassword, validatePositiveInt, isValidUUID } from "@/utils/input-validation";
+import { sanitizeProjectName, sanitizeMemo, sanitizePassword, isValidUUID } from "@/utils/input-validation";
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
         if (!auth.authenticated) return auth.response;
 
         const body = await req.json();
-        const { name, folder_name, password, memo, expires_at, max_downloads } = body;
+        const { name, folder_name, password, memo, expires_at } = body;
 
         // Validate project name
         const nameCheck = sanitizeProjectName(name);
@@ -29,12 +29,6 @@ export async function POST(req: NextRequest) {
         // Validate folder_name is a UUID
         if (!folder_name || !isValidUUID(folder_name)) {
             return NextResponse.json({ error: "Invalid folder name format" }, { status: 400 });
-        }
-
-        // Validate max_downloads
-        const maxDlCheck = validatePositiveInt(max_downloads || 5, 1000);
-        if (!maxDlCheck.valid) {
-            return NextResponse.json({ error: `max_downloads: ${maxDlCheck.error}` }, { status: 400 });
         }
 
         // Sanitize inputs
@@ -54,8 +48,6 @@ export async function POST(req: NextRequest) {
                 expires_at,
                 status: 'active',
                 view_count: 0,
-                download_count: 0,
-                max_downloads: maxDlCheck.value,
             }])
             .select()
             .single();

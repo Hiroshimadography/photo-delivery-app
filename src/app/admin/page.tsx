@@ -15,8 +15,6 @@ type Project = {
     created_at: string;
     expires_at: string | null;
     view_count: number;
-    download_count: number;
-    max_downloads: number;
 };
 
 export default function AdminDashboard() {
@@ -148,10 +146,6 @@ export default function AdminDashboard() {
                                                 <div className="flex items-center gap-1.5" title="閲覧回数">
                                                     <Eye size={16} className="text-stone-400" />
                                                     <span className="font-medium">{project.view_count}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5" title="ダウンロード回数">
-                                                    <Download size={16} className="text-stone-400" />
-                                                    <span className="font-medium">{project.download_count} / {project.max_downloads || 5}</span>
                                                 </div>
                                             </div>
 

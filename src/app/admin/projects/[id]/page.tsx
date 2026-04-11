@@ -15,8 +15,6 @@ type Project = {
     memo: string | null;
     created_at: string;
     expires_at: string | null;
-    max_downloads: number;
-    download_count: number;
 };
 
 type DownloadLog = {
@@ -47,8 +45,6 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
     const [isEditingMemo, setIsEditingMemo] = useState(false);
     const [memoInput, setMemoInput] = useState("");
     
-    const [isEditingMaxDownloads, setIsEditingMaxDownloads] = useState(false);
-    const [maxDownloadsInput, setMaxDownloadsInput] = useState("");
 
     // Upload state
     const [isDragActive, setIsDragActive] = useState(false);
@@ -80,7 +76,6 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
             if (projectError) throw projectError;
             setProject(projectData);
             setMemoInput(projectData.memo || "");
-            setMaxDownloadsInput(projectData.max_downloads?.toString() || "5");
 
             // Fetch decrypted password from server-side API
             if (projectData.password) {
@@ -163,23 +158,6 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
         } catch (error) {
             console.error("Error saving memo:", error);
             alert("メモの保存に失敗しました: " + (error instanceof Error ? error.message : String(error)));
-        }
-    };
-
-    const handleSaveMaxDownloads = async () => {
-        if (!project) return;
-        try {
-            const { error } = await supabase
-                .from('projects')
-                .update({ max_downloads: parseInt(maxDownloadsInput) })
-                .eq('id', project.id);
-
-            if (error) throw error;
-            setProject({ ...project, max_downloads: parseInt(maxDownloadsInput) });
-            setIsEditingMaxDownloads(false);
-        } catch (error) {
-            console.error("Error saving max downloads:", error);
-            alert("ダウンロード上限の保存に失敗しました");
         }
     };
 
@@ -651,58 +629,6 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                                 </div>
                             </div>
 
-                            <div>
-                                <div className="flex justify-between items-center mb-1">
-                                    <p className="text-sm text-stone-500">ダウンロード状況</p>
-                                    {!isEditingMaxDownloads && (
-                                        <button
-                                            onClick={() => setIsEditingMaxDownloads(true)}
-                                            className="text-xs text-stone-500 hover:text-stone-900 underline"
-                                        >
-                                            上限変更
-                                        </button>
-                                    )}
-                                </div>
-                                
-                                {isEditingMaxDownloads ? (
-                                    <div className="space-y-2 mt-2">
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                value={maxDownloadsInput}
-                                                onChange={(e) => setMaxDownloadsInput(e.target.value)}
-                                                className="w-24 bg-white border border-stone-200 rounded-lg px-3 py-1.5 text-sm text-stone-700"
-                                            />
-                                            <span className="text-sm text-stone-500">回</span>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => {
-                                                    setIsEditingMaxDownloads(false);
-                                                    setMaxDownloadsInput(project.max_downloads?.toString() || "5");
-                                                }}
-                                                className="text-xs px-3 py-1.5 text-stone-500 hover:bg-stone-100 rounded transition-colors"
-                                            >
-                                                キャンセル
-                                            </button>
-                                            <button
-                                                onClick={handleSaveMaxDownloads}
-                                                className="text-xs px-3 py-1.5 bg-stone-900 text-white hover:bg-stone-800 rounded shadow-sm transition-colors"
-                                            >
-                                                保存
-                                            </button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="text-stone-800 text-sm font-medium flex items-center gap-2">
-                                        <span>{project.download_count} / {project.max_downloads} 回</span>
-                                        {project.download_count >= project.max_downloads && (
-                                            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold">上限到達</span>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
                         </div>
 
                         <div className="mt-8 pt-4 border-t border-stone-100 flex flex-col gap-3">
@@ -725,8 +651,7 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                                         .replace(/{{customer_name}}/g, project.name)
                                         .replace(/{{url}}/g, `${window.location.origin}/p/${project.folder_name}`)
                                         .replace(/{{password}}/g, decryptedPassword || '設定なし')
-                                        .replace(/{{expiry_date}}/g, project.expires_at ? new Date(project.expires_at).toLocaleDateString('ja-JP') : '')
-                                        .replace(/{{max_downloads}}/g, project.max_downloads?.toString() || '5');
+                                        .replace(/{{expiry_date}}/g, project.expires_at ? new Date(project.expires_at).toLocaleDateString('ja-JP') : '');
                                     navigator.clipboard.writeText(text);
                                     alert('案内文をコピーしました');
                                 }}
