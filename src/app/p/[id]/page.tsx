@@ -519,15 +519,15 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                             <button
                                 onClick={() => handleDownloadSingle(photo.id, i)}
                                 disabled={downloadingPhotoId === photo.id}
-                                className="absolute bottom-3 right-3 w-9 h-9 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 md:opacity-0 active:opacity-100 backdrop-blur-sm disabled:opacity-70"
-                                style={{ opacity: downloadingPhotoId === photo.id ? 1 : undefined }}
+                                className="absolute bottom-2 right-2 px-2.5 py-1.5 rounded-lg bg-black/50 hover:bg-black/70 text-white flex items-center gap-1.5 transition-all backdrop-blur-sm disabled:opacity-70 text-xs font-medium shadow-lg"
                                 title="この写真をダウンロード"
                             >
                                 {downloadingPhotoId === photo.id ? (
-                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                 ) : (
-                                    <Download size={16} />
+                                    <Download size={14} />
                                 )}
+                                <span>保存</span>
                             </button>
                         </motion.div>
                     ))}
