@@ -271,7 +271,7 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                         const finRes = await fetch('/api/admin/upload/finalize', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ projectId: project.id, storagePath }),
+                            body: JSON.stringify({ projectId: project.id, storagePath, originalFilename: file.name }),
                         });
                         if (!finRes.ok) throw new Error('Finalize API failed');
 

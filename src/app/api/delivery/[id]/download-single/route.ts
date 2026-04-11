@@ -49,7 +49,7 @@ export async function POST(
         // 写真取得（プロジェクトに属しているか確認）
         const { data: photo, error: photoError } = await supabaseAdmin
             .from('photos')
-            .select('id, storage_path')
+            .select('id, storage_path, original_filename')
             .eq('id', photoId)
             .eq('project_id', project.id)
             .single();
@@ -58,9 +58,8 @@ export async function POST(
             return NextResponse.json({ success: false, message: 'Photo not found' }, { status: 404 });
         }
 
-        // ファイル名を storage_path から取得
-        const parts = photo.storage_path.split('/');
-        const originalFilename = parts.pop() || 'photo.jpg';
+        // ファイル名: original_filename があればそれを使用、なければ storage_path から取得
+        const originalFilename = photo.original_filename || photo.storage_path.split('/').pop() || 'photo.jpg';
 
         // 署名付きURL（Content-Disposition: attachment を強制）
         const { data: signedData, error: signedError } = await supabaseAdmin.storage

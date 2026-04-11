@@ -49,7 +49,7 @@ export async function POST(
         // Fetch photos from DB
         let query = supabaseAdmin
             .from('photos')
-            .select('id, storage_path')
+            .select('id, storage_path, original_filename')
             .eq('project_id', project.id)
             .order('created_at', { ascending: true });
 
@@ -89,9 +89,10 @@ export async function POST(
                         const response = await fetch(signedUrlData.signedUrl);
                         if (response.ok) {
                             const arrayBuffer = await response.arrayBuffer();
-                            const filename = action === 'selected'
-                                ? `photo-${globalIndex + 1}.jpg`
-                                : `img_${String(globalIndex + 1).padStart(3, '0')}.jpg`;
+                            // 元のファイル名があればそれを使用、なければ連番
+                            const ext = photo.storage_path.split('.').pop() || 'jpg';
+                            const filename = photo.original_filename
+                                || `img_${String(globalIndex + 1).padStart(3, '0')}.${ext}`;
                             zip.file(filename, arrayBuffer);
                         }
                     }

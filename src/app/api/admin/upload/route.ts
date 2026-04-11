@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
         const file = formData.get('file') as File;
         const projectId = formData.get('projectId') as string;
         const storagePath = formData.get('storagePath') as string;
+        const originalFilename = formData.get('originalFilename') as string;
 
         if (!file || !projectId || !storagePath) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -90,7 +91,8 @@ export async function POST(req: NextRequest) {
                 {
                     project_id: projectId,
                     storage_path: storagePath,
-                    url: thumbUrl // Storing a signed URL so admin dashboard can preview it
+                    url: thumbUrl, // Storing a signed URL so admin dashboard can preview it
+                    original_filename: originalFilename || null,
                 }
             ]);
 
