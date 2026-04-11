@@ -581,7 +581,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                                 <h3 className="text-sm font-medium text-stone-500 mb-3">写真データの削除について</h3>
                                 <p className="text-stone-400 text-xs leading-relaxed mb-6">
                                     ダウンロードがお済みの場合、このURL上に保存されている写真データを削除できます。<br />
-                                    <span className="text-stone-500 font-medium">※既にダウンロードしてお手元に保存された写真は削除されません。</span><br />
+                                    <span className="text-stone-500 font-medium">※既にダウンロードしたお手元に保存された写真は削除されません。</span><br />
                                     このURLからの閲覧・ダウンロードができなくなります。
                                 </p>
 
