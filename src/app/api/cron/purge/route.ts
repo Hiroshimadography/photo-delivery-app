@@ -77,11 +77,67 @@ export async function GET(request: Request) {
             }
         }
 
+        // ====== 一時ZIPファイルの削除（1時間以上前のもの） ======
+        let tempZipDeleted = 0;
+        let tempZipErrors: string[] = [];
+
+        try {
+            // temp-downloads/ 配下のプロジェクトフォルダ一覧を取得
+            const { data: tempFolders } = await supabaseAdmin.storage
+                .from('photos')
+                .list('temp-downloads');
+
+            if (tempFolders && tempFolders.length > 0) {
+                const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+                for (const folder of tempFolders) {
+                    try {
+                        // 各プロジェクトフォルダ内のZIPファイル一覧
+                        const { data: zipFiles } = await supabaseAdmin.storage
+                            .from('photos')
+                            .list(`temp-downloads/${folder.name}`);
+
+                        if (!zipFiles || zipFiles.length === 0) continue;
+
+                        // 1時間以上経過したファイルを抽出
+                        const expiredFiles = zipFiles.filter(f => {
+                            const created = new Date(f.created_at);
+                            return created < oneHourAgo;
+                        });
+
+                        if (expiredFiles.length > 0) {
+                            const pathsToDelete = expiredFiles.map(
+                                f => `temp-downloads/${folder.name}/${f.name}`
+                            );
+                            const { error: removeError } = await supabaseAdmin.storage
+                                .from('photos')
+                                .remove(pathsToDelete);
+
+                            if (removeError) {
+                                console.error(`Failed to remove temp zips in ${folder.name}:`, removeError);
+                                tempZipErrors.push(folder.name);
+                            } else {
+                                tempZipDeleted += expiredFiles.length;
+                            }
+                        }
+                    } catch (folderErr) {
+                        console.error(`Error processing temp folder ${folder.name}:`, folderErr);
+                        tempZipErrors.push(folder.name);
+                    }
+                }
+            }
+        } catch (tempErr) {
+            console.error('Temp ZIP cleanup error:', tempErr);
+            tempZipErrors.push('listing_failed');
+        }
+
         return NextResponse.json({
             success: true,
             deleted: deletedCount,
             total_expired: expiredProjects?.length || 0,
+            temp_zip_deleted: tempZipDeleted,
             errors: errors.length > 0 ? errors : undefined,
+            temp_zip_errors: tempZipErrors.length > 0 ? tempZipErrors : undefined,
             timestamp: now,
         });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, use, useEffect } from "react";
-import { Download, ChevronRight } from "lucide-react";
+import { Download, ChevronRight, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 
@@ -274,6 +274,32 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
         await downloadAll();
     };
 
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isDeleted, setIsDeleted] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+    const handleDeleteData = async () => {
+        setIsDeleting(true);
+        try {
+            const res = await fetch(`/api/delivery/${folder_name}/delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                alert(data?.message || 'データの削除中にエラーが発生しました。');
+                return;
+            }
+            setIsDeleted(true);
+            setShowDeleteConfirm(false);
+        } catch (err) {
+            console.error(err);
+            alert('データの削除中にエラーが発生しました。');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     // 初期ロード中はローディング表示
     if (initialLoading) {
         return (
@@ -531,6 +557,77 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                             <Download size={16} className={isDownloading ? "animate-bounce" : ""} />
                             {isDownloading ? "準備中..." : "一括保存"}
                         </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Data Deletion Section */}
+            <div className="max-w-7xl mx-auto px-6 mb-20">
+                <div className="border border-stone-200 rounded-xl p-6 md:p-8">
+                    <div className="text-center max-w-lg mx-auto">
+                        {isDeleted ? (
+                            <div className="space-y-3">
+                                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600"><path d="M20 6 9 17l-5-5"/></svg>
+                                </div>
+                                <h3 className="text-lg font-medium text-stone-800 font-serif">データを削除しました</h3>
+                                <p className="text-stone-500 text-sm leading-relaxed">
+                                    このURL上の写真データはすべて削除されました。<br />
+                                    既にダウンロード済みのデータには影響ありません。
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                <h3 className="text-sm font-medium text-stone-500 mb-3">写真データの削除について</h3>
+                                <p className="text-stone-400 text-xs leading-relaxed mb-6">
+                                    ダウンロードがお済みの場合、このURL上に保存されている写真データを削除できます。<br />
+                                    <span className="text-stone-500 font-medium">※既にダウンロードしてお手元に保存された写真は削除されません。</span><br />
+                                    このURLからの閲覧・ダウンロードができなくなります。
+                                </p>
+
+                                {showDeleteConfirm ? (
+                                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-4">
+                                        <p className="text-red-700 text-sm font-medium">
+                                            本当にこのURL上の写真データを削除しますか？<br />
+                                            この操作は取り消せません。
+                                        </p>
+                                        <div className="flex justify-center gap-3">
+                                            <button
+                                                onClick={() => setShowDeleteConfirm(false)}
+                                                disabled={isDeleting}
+                                                className="px-5 py-2 text-sm text-stone-600 bg-white border border-stone-300 rounded-lg hover:bg-stone-50 transition-colors"
+                                            >
+                                                キャンセル
+                                            </button>
+                                            <button
+                                                onClick={handleDeleteData}
+                                                disabled={isDeleting}
+                                                className="px-5 py-2 text-sm text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+                                            >
+                                                {isDeleting ? (
+                                                    <>
+                                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                        削除中...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Trash2 size={14} />
+                                                        削除する
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => setShowDeleteConfirm(true)}
+                                        className="text-stone-400 hover:text-red-500 text-xs underline underline-offset-2 transition-colors"
+                                    >
+                                        このURL上の写真データを削除する
+                                    </button>
+                                )}
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
