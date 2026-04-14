@@ -193,7 +193,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                         setDownloadProgress(50 + Math.floor((received / total) * 45));
                     }
 
-                    const blob = new Blob(chunks, { type: 'application/zip' });
+                    const blob = new Blob(chunks as any, { type: 'application/zip' });
                     triggerBlobDownload(blob, zipFilename);
                 } else {
                     // フォールバック: ReadableStream非対応 or Content-Length不明
@@ -504,20 +504,12 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                 </motion.div>
 
                 {/* Action Bar (Sticky) */}
-                <div className="sticky top-24 z-30 bg-white shadow-lg shadow-stone-200/20 border border-stone-200/60 rounded-xl p-4 md:p-6 mb-12 flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-xl">
-                    <div className="text-stone-600 text-sm font-medium">
-                        <span className="md:hidden text-green-700 font-bold block mb-1">【スマホの方】写真をタップして拡大後、長押しで直接保存できます</span>
-                        各写真のダウンロードボタン、または一括保存をご利用ください
-                    </div>
-
-                    <button
-                        onClick={handleDownloadAll}
-                        disabled={isDownloading}
-                        className="px-6 py-3 bg-stone-900 hover:bg-stone-800 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-md whitespace-nowrap"
-                    >
-                        <Download size={16} className={isDownloading ? "animate-bounce" : ""} />
-                        {isDownloading ? "準備中..." : "一括保存 (ZIP / PC推奨)"}
-                    </button>
+                <div className="sticky top-24 z-30 bg-white shadow-lg shadow-stone-200/20 border border-stone-200/60 rounded-xl p-4 md:p-5 mb-12 flex flex-col items-center justify-center gap-1.5 backdrop-blur-xl text-center">
+                    <span className="text-stone-800 font-bold text-base md:text-lg w-full">
+                        <span className="text-green-700">【重要】</span>
+                        写真をタップして拡大後、画像を長押しで直接保存できます
+                    </span>
+                    <span className="text-stone-500 text-xs md:text-sm font-medium">※PC等からの一括保存（ZIP）はページ最下部のボタンをご利用ください</span>
                 </div>
 
                 {/* Gallery Grid */}
@@ -543,20 +535,6 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                                 }}
                             />
 
-                            {/* Individual Download Button */}
-                            <button
-                                onClick={(e) => { e.stopPropagation(); handleDownloadSingle(photo.id, i); }}
-                                disabled={downloadingPhotoId === photo.id}
-                                className="absolute bottom-2 right-2 px-2.5 py-1.5 rounded-lg bg-black/50 hover:bg-black/70 text-white flex items-center gap-1.5 transition-all backdrop-blur-sm disabled:opacity-70 text-xs font-medium shadow-lg"
-                                title="この写真をダウンロード"
-                            >
-                                {downloadingPhotoId === photo.id ? (
-                                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                ) : (
-                                    <Download size={14} />
-                                )}
-                                <span>保存</span>
-                            </button>
                         </motion.div>
                     ))}
                 </div>
@@ -581,9 +559,9 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                         </button>
                         
                         {/* Instruction for Mobile */}
-                        <div className="absolute top-4 left-4 right-20 md:top-8 md:max-w-md bg-black/60 border border-white/10 text-white text-xs md:text-sm px-4 py-3 rounded-lg backdrop-blur-md z-20 leading-relaxed shadow-xl">
-                            <span className="font-bold text-green-400">スマホで保存する場合:</span><br/>
-                            画像を長押しして「写真に追加（保存）」を選んでください
+                        <div className="absolute top-4 left-0 right-0 mx-auto w-max max-w-[90%] md:top-8 bg-black/80 border border-white/20 text-white px-5 py-4 rounded-2xl backdrop-blur-md z-20 shadow-2xl text-center break-words">
+                            <span className="font-bold text-green-400 block mb-2 text-sm md:text-base">【画像を直接保存できます】</span>
+                            画像を<b className="text-white text-lg md:text-xl border-b-2 border-white mx-1">長押し</b>して<br className="md:hidden"/>「写真に追加（保存）」を<br className="md:hidden"/>選択してください
                         </div>
 
                         {/* Navigation Prev */}
@@ -632,10 +610,9 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
 
             {/* Bottom Action Bar */}
             <div className="max-w-7xl mx-auto px-6 mb-20">
-                <div className="bg-white shadow-lg shadow-stone-200/20 border border-stone-200/60 rounded-xl p-4 md:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-xl">
+                <div className="bg-white shadow-lg shadow-stone-200/20 border border-stone-200/60 rounded-xl p-4 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 backdrop-blur-xl text-center md:text-left">
                     <div className="text-stone-600 text-sm font-medium">
-                        <span className="md:hidden text-green-700 font-bold block mb-1">【スマホの方】写真をタップして拡大後、長押しで直接保存できます</span>
-                        各写真のダウンロードボタン、または一括保存をご利用ください
+                        PC環境の方やZIPファイルでの保存をご希望の場合は<br className="md:hidden"/>一括保存をご利用ください
                     </div>
 
                     <div className="flex w-full sm:w-auto gap-3">
