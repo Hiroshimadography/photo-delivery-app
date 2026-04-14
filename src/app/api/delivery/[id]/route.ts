@@ -151,6 +151,16 @@ export async function POST(
             }, { status: 403 });
         }
 
+        // 閲覧回数をインクリメント
+        const { error: updateError } = await supabaseAdmin
+            .from('projects')
+            .update({ view_count: (project.view_count || 0) + 1 })
+            .eq('id', project.id);
+            
+        if (updateError) {
+            console.error('Error updating view_count:', updateError);
+        }
+
         const { data: brandSettings, error: brandError } = await supabaseAdmin
             .from('brand_settings')
             .select('*')
