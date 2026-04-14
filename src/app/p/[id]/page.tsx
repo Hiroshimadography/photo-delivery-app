@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, use, useEffect } from "react";
-import { Download, ChevronRight, Trash2 } from "lucide-react";
+import { Download, ChevronRight, Trash2, X, ChevronLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 
@@ -278,6 +278,32 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
     const [isDeleted, setIsDeleted] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+    const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+    const handlePrevPhoto = (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        if (lightboxIndex !== null && lightboxIndex > 0) {
+            setLightboxIndex(lightboxIndex - 1);
+        }
+    };
+
+    const handleNextPhoto = (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        if (lightboxIndex !== null && lightboxIndex < photos.length - 1) {
+            setLightboxIndex(lightboxIndex + 1);
+        }
+    };
+
+    // 背景スクロールロック
+    useEffect(() => {
+        if (lightboxIndex !== null) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => { document.body.style.overflow = ''; };
+    }, [lightboxIndex]);
+
     const handleDeleteData = async () => {
         setIsDeleting(true);
         try {
@@ -480,16 +506,17 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                 {/* Action Bar (Sticky) */}
                 <div className="sticky top-24 z-30 bg-white shadow-lg shadow-stone-200/20 border border-stone-200/60 rounded-xl p-4 md:p-6 mb-12 flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-xl">
                     <div className="text-stone-600 text-sm font-medium">
+                        <span className="md:hidden text-green-700 font-bold block mb-1">【スマホの方】写真をタップして拡大後、長押しで直接保存できます</span>
                         各写真のダウンロードボタン、または一括保存をご利用ください
                     </div>
 
                     <button
                         onClick={handleDownloadAll}
                         disabled={isDownloading}
-                        className="px-6 py-3 bg-stone-900 hover:bg-stone-800 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-md"
+                        className="px-6 py-3 bg-stone-900 hover:bg-stone-800 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-md whitespace-nowrap"
                     >
                         <Download size={16} className={isDownloading ? "animate-bounce" : ""} />
-                        {isDownloading ? "準備中..." : "一括保存"}
+                        {isDownloading ? "準備中..." : "一括保存 (ZIP / PC推奨)"}
                     </button>
                 </div>
 
@@ -501,7 +528,8 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: i * 0.05 }}
                             key={photo.id}
-                            className="group relative aspect-[4/5] overflow-hidden bg-stone-100"
+                            className="group relative aspect-[4/5] overflow-hidden bg-stone-100 cursor-pointer"
+                            onClick={() => setLightboxIndex(i)}
                         >
                             <img
                                 src={photo.thumbUrl || photo.url}
@@ -517,7 +545,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
 
                             {/* Individual Download Button */}
                             <button
-                                onClick={() => handleDownloadSingle(photo.id, i)}
+                                onClick={(e) => { e.stopPropagation(); handleDownloadSingle(photo.id, i); }}
                                 disabled={downloadingPhotoId === photo.id}
                                 className="absolute bottom-2 right-2 px-2.5 py-1.5 rounded-lg bg-black/50 hover:bg-black/70 text-white flex items-center gap-1.5 transition-all backdrop-blur-sm disabled:opacity-70 text-xs font-medium shadow-lg"
                                 title="この写真をダウンロード"
@@ -534,10 +562,79 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                 </div>
             </main>
 
+            {/* Lightbox Overlay */}
+            <AnimatePresence>
+                {lightboxIndex !== null && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-sm"
+                        onClick={() => setLightboxIndex(null)}
+                    >
+                        {/* Close Button */}
+                        <button 
+                            className="absolute top-4 right-4 md:top-8 md:right-8 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-20"
+                            onClick={(e) => { e.stopPropagation(); setLightboxIndex(null); }}
+                        >
+                            <X size={24} />
+                        </button>
+                        
+                        {/* Instruction for Mobile */}
+                        <div className="absolute top-4 left-4 right-20 md:top-8 md:max-w-md bg-black/60 border border-white/10 text-white text-xs md:text-sm px-4 py-3 rounded-lg backdrop-blur-md z-20 leading-relaxed shadow-xl">
+                            <span className="font-bold text-green-400">スマホで保存する場合:</span><br/>
+                            画像を長押しして「写真に追加（保存）」を選んでください
+                        </div>
+
+                        {/* Navigation Prev */}
+                        {lightboxIndex > 0 && (
+                            <button 
+                                className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-20"
+                                onClick={handlePrevPhoto}
+                            >
+                                <ChevronLeft size={32} />
+                            </button>
+                        )}
+
+                        {/* Navigation Next */}
+                        {lightboxIndex < photos.length - 1 && (
+                            <button 
+                                className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-20"
+                                onClick={handleNextPhoto}
+                            >
+                                <ChevronRight size={32} />
+                            </button>
+                        )}
+
+                        {/* Image Container */}
+                        <motion.div
+                            key={lightboxIndex}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ duration: 0.2 }}
+                            className="w-full h-full p-4 pt-24 md:p-12 flex items-center justify-center"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <img
+                                src={photos[lightboxIndex].url}
+                                alt={`Photo ${lightboxIndex + 1}`}
+                                className="max-w-full max-h-full object-contain rounded-sm shadow-2xl"
+                            />
+                        </motion.div>
+                        
+                        <div className="absolute bottom-6 left-0 right-0 text-center text-white/50 text-sm font-medium tracking-widest z-20">
+                            {lightboxIndex + 1} / {photos.length}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* Bottom Action Bar */}
             <div className="max-w-7xl mx-auto px-6 mb-20">
                 <div className="bg-white shadow-lg shadow-stone-200/20 border border-stone-200/60 rounded-xl p-4 md:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 backdrop-blur-xl">
                     <div className="text-stone-600 text-sm font-medium">
+                        <span className="md:hidden text-green-700 font-bold block mb-1">【スマホの方】写真をタップして拡大後、長押しで直接保存できます</span>
                         各写真のダウンロードボタン、または一括保存をご利用ください
                     </div>
 
@@ -552,10 +649,10 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                         <button
                             onClick={handleDownloadAll}
                             disabled={isDownloading}
-                            className="flex-1 sm:flex-none px-6 py-3 bg-stone-900 hover:bg-stone-800 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-md"
+                            className="flex-1 sm:flex-none px-6 py-3 bg-stone-900 hover:bg-stone-800 text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-md whitespace-nowrap"
                         >
                             <Download size={16} className={isDownloading ? "animate-bounce" : ""} />
-                            {isDownloading ? "準備中..." : "一括保存"}
+                            {isDownloading ? "準備中..." : "一括保存 (ZIP / PC推奨)"}
                         </button>
                     </div>
                 </div>

@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /c/Users/forza/OneDrive/デスクトップ/decvelopment/写真納品WEBアプリ\\\\\\(dography\\\\\\)/)",
+      "Bash(ls -la /c/Users/forza/OneDrive/デスクトップ/decvelopment/写真納品WEBアプリ\\\\\\(dography\\\\\\)/middleware.*)",
+      "Bash(ls -la /c/Users/forza/OneDrive/デスクトップ/decvelopment/写真納品WEBアプリ\\\\\\(dography\\\\\\))",
+      "Bash(ls -la /c/Users/forza/OneDrive/デスクトップ/decvelopment/写真納品WEBアプリ\\\\\\(dography\\\\\\)/middleware.ts)",
+      "Bash(npx tsc:*)",
+      "Bash(npm ls:*)",
+      "Bash(node -e \"console.log\\(require\\(''crypto''\\).randomBytes\\(32\\).toString\\(''hex''\\)\\)\")",
+      "Bash(npm install:*)",
+      "Bash(npx next:*)",
+      "Bash(ls -la \"/c/Users/forza/OneDrive/デスクトップ/decvelopment/写真納品WEBアプリ\\(dography\\)/src/app/\")",
+      "Bash(xargs grep:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(ls \"C:/Users/forza/OneDrive/デスクトップ/decvelopment/写真納品WEBアプリ\\(dography\\)/supabase/migrations/\")",
+      "Bash(grep -r \"\\\\.generateAsync\\\\|\\\\.file\\\\|saveAs\\\\|download\" ./src --include=*.tsx --include=*.ts -n)",
+      "Bash(grep -A 20 \"handleDownloadSelected\\\\|handleDownloadAll\" ./src/app/p/[id]/page.tsx)",
+      "Bash(wc -l ./src/app/api/delivery/[id]/route.ts)",
+      "Bash(ls \"C:\\\\Users\\\\forza\\\\OneDrive\\\\デスクトップ\\\\decvelopment\\\\写真納品WEBアプリ\\(dography\\)\\\\src\\\\app\\\\api\\\\delivery\\\\[id]\")",
+      "Bash(gh auth:*)",
+      "Bash(git credential-manager:*)",
+      "Bash(cmdkey /list)",
+      "Bash(cmdkey /delete:git:https://github.com)",
+      "Bash(printf 'protocol=https\\\\nhost=github.com\\\\n')",
+      "Bash(node -e ':*)"
+    ]
+  }
+}

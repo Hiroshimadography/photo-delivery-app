@@ -66,25 +66,30 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
     const fetchProjectData = async () => {
         setIsLoading(true);
         try {
-            // プロジェクト情報の取得
-            const { data: projectData, error: projectError } = await supabase
-                .from('projects')
-                .select('*')
-                .eq('id', id)
-                .single();
+            // パラレルで全データを一括取得
+            const [
+                { data: projectData, error: projectError },
+                pwRes,
+                photosRes,
+                { data: templateData, error: templateError },
+                { data: logsData }
+            ] = await Promise.all([
+                supabase.from('projects').select('*').eq('id', id).single(),
+                fetch(`/api/admin/projects/${id}/password`).catch(() => null),
+                fetch(`/api/admin/projects/${id}/photos`).catch(() => null),
+                supabase.from('settings').select('value').eq('key', 'delivery_template').single(),
+                supabase.from('download_logs').select('*').eq('project_id', id).order('created_at', { ascending: false })
+            ]);
 
             if (projectError) throw projectError;
             setProject(projectData);
             setMemoInput(projectData.memo || "");
 
-            // Fetch decrypted password from server-side API
-            if (projectData.password) {
+            // Fetch decrypted password info
+            if (projectData.password && pwRes?.ok) {
                 try {
-                    const pwRes = await fetch(`/api/admin/projects/${id}/password`);
-                    if (pwRes.ok) {
-                        const pwData = await pwRes.json();
-                        setDecryptedPassword(pwData.password);
-                    }
+                    const pwData = await pwRes.json();
+                    setDecryptedPassword(pwData.password);
                 } catch {
                     setDecryptedPassword(null);
                 }
@@ -92,24 +97,12 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                 setDecryptedPassword(null);
             }
 
-            // 紐づく写真一覧の取得（サーバーサイドで署名付きURLを再生成）
-            try {
-                const photosRes = await fetch(`/api/admin/projects/${id}/photos`);
-                if (photosRes.ok) {
-                    const photosResult = await photosRes.json();
-                    setPhotos(photosResult.photos || []);
-                } else {
-                    // Fallback to direct DB query if API fails
-                    const { data: photosData, error: photosError } = await supabase
-                        .from('photos')
-                        .select('*')
-                        .eq('project_id', id)
-                        .order('created_at', { ascending: true });
-                    if (photosError) throw photosError;
-                    setPhotos(photosData || []);
-                }
-            } catch {
-                const { data: photosData } = await supabase
+            // Fetch photos
+            if (photosRes?.ok) {
+                const photosResult = await photosRes.json();
+                setPhotos(photosResult.photos || []);
+            } else {
+                const { data: photosData, error: photosError } = await supabase
                     .from('photos')
                     .select('*')
                     .eq('project_id', id)
@@ -117,24 +110,13 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                 setPhotos(photosData || []);
             }
 
-            // カスタムテンプレートの取得
-            const { data: templateData, error: templateError } = await supabase
-                .from('settings')
-                .select('value')
-                .eq('key', 'delivery_template')
-                .single();
-
+            // Custom template
             if (templateData && !templateError) {
                 setTemplateText(templateData.value);
             } else {
                 setTemplateText(`{{customer_name}} 様\n\n専用ページ：{{url}}\nパスワード：{{password}}`);
             }
 
-            const { data: logsData } = await supabase
-                .from('download_logs')
-                .select('*')
-                .eq('project_id', id)
-                .order('created_at', { ascending: false });
             setDownloadLogs(logsData || []);
 
         } catch (error) {
@@ -219,24 +201,13 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                     const thumbStoragePath = `${project.folder_name}/thumb_${uniqueFilename}`;
 
                     try {
-                        // 1. サーバーサイドでEXIFメタデータを除去
+                        // 1. サニタイズ、サムネイル作成、各種URL取得をすべて並列化
                         const sanitizeForm = new FormData();
                         sanitizeForm.append('file', file);
-                        const sanitizeRes = await fetch('/api/admin/upload/sanitize', {
-                            method: 'POST',
-                            body: sanitizeForm,
-                        });
-                        let sanitizedFile: File | Blob = file;
-                        if (sanitizeRes.ok) {
-                            const sanitizedBlob = await sanitizeRes.blob();
-                            sanitizedFile = new File([sanitizedBlob], file.name, { type: sanitizedBlob.type });
-                        }
-
-                        // 2. サムネイルの生成（メタデータ除去済みファイルから）
-                        const thumbBlob = await generateThumbnail(sanitizedFile instanceof File ? sanitizedFile : file);
-
-                        // 3. オリジナルとサムネイルの両方の Signed Upload URL を取得
-                        const [initRes, thumbInitRes] = await Promise.all([
+                        
+                        const [sanitizeRes, thumbBlob, initRes, thumbInitRes] = await Promise.all([
+                            fetch('/api/admin/upload/sanitize', { method: 'POST', body: sanitizeForm }),
+                            generateThumbnail(file), // Canvas生成（EXIFは自動削除されるため元ファイルからでOK）
                             fetch('/api/admin/upload/init', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -248,6 +219,12 @@ export default function ProjectDetail({ params }: { params: Promise<{ id: string
                                 body: JSON.stringify({ storagePath: thumbStoragePath }),
                             })
                         ]);
+
+                        let sanitizedFile: File | Blob = file;
+                        if (sanitizeRes.ok) {
+                            const sanitizedBlob = await sanitizeRes.blob();
+                            sanitizedFile = new File([sanitizedBlob], file.name, { type: sanitizedBlob.type });
+                        }
 
                         if (!initRes.ok || !thumbInitRes.ok) throw new Error('Init API failed');
                         
