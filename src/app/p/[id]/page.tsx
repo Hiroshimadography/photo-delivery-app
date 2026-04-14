@@ -507,7 +507,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                 <div className="sticky top-24 z-30 bg-white shadow-lg shadow-stone-200/20 border border-stone-200/60 rounded-xl p-4 md:p-5 mb-12 flex flex-col items-center justify-center gap-1.5 backdrop-blur-xl text-center">
                     <span className="text-stone-800 font-bold text-base md:text-lg w-full">
                         <span className="text-green-700">【重要】</span>
-                        写真をタップして拡大後、画像を長押しで直接保存できます
+                        写真をタップして拡大後、画像を長押しで１枚ずつ直接保存できます
                     </span>
                     <span className="text-stone-500 text-xs md:text-sm font-medium">※PC等からの一括保存（ZIP）はページ最下部のボタンをご利用ください</span>
                 </div>
