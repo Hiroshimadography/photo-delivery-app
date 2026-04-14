@@ -561,7 +561,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                         {/* Instruction for Mobile */}
                         <div className="absolute top-4 left-0 right-0 mx-auto w-max max-w-[90%] md:top-8 bg-black/80 border border-white/20 text-white px-5 py-4 rounded-2xl backdrop-blur-md z-20 shadow-2xl text-center break-words">
                             <span className="font-bold text-green-400 block mb-2 text-sm md:text-base">【画像を直接保存できます】</span>
-                            画像を<b className="text-white text-lg md:text-xl border-b-2 border-white mx-1">長押し</b>して<br className="md:hidden"/>「写真に追加（保存）」を<br className="md:hidden"/>選択してください
+                            画像を<b className="text-white text-lg md:text-xl border-b-2 border-white mx-1">長押し</b>して<br className="md:hidden"/>「写真に追加」または<br className="md:hidden"/>「画像を保存（ダウンロード）」を<br className="md:hidden"/>選択してください
                         </div>
 
                         {/* Navigation Prev */}
@@ -591,8 +591,18 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
                             transition={{ duration: 0.2 }}
-                            className="w-full h-full p-4 pt-24 md:p-12 flex items-center justify-center"
+                            className="w-full h-full p-4 pt-32 md:p-12 flex items-center justify-center cursor-grab active:cursor-grabbing"
                             onClick={(e) => e.stopPropagation()}
+                            drag="x"
+                            dragConstraints={{ left: 0, right: 0 }}
+                            dragElastic={0.5}
+                            onDragEnd={(e, { offset }) => {
+                                if (offset.x > 50) {
+                                    handlePrevPhoto();
+                                } else if (offset.x < -50) {
+                                    handleNextPhoto();
+                                }
+                            }}
                         >
                             <img
                                 src={photos[lightboxIndex].url}
