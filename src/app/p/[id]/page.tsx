@@ -279,6 +279,17 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+    const [savedPhotoIds, setSavedPhotoIds] = useState<Set<string>>(new Set());
+
+    // 長押し（コンテキストメニュー）で保存された写真をマーク
+    const markPhotoAsSaved = (photoId: string) => {
+        setSavedPhotoIds(prev => {
+            if (prev.has(photoId)) return prev;
+            const next = new Set(prev);
+            next.add(photoId);
+            return next;
+        });
+    };
 
     const handlePrevPhoto = (e?: React.MouseEvent) => {
         e?.stopPropagation();
@@ -506,8 +517,8 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                 {/* Action Bar (Sticky) */}
                 <div className="sticky top-24 z-30 bg-white shadow-lg shadow-stone-200/20 border border-stone-200/60 rounded-xl p-4 md:p-5 mb-12 flex flex-col items-center justify-center gap-1.5 backdrop-blur-xl text-center">
                     <span className="text-stone-800 font-bold text-base md:text-lg w-full">
-                        <span className="text-green-700">【重要】</span>
-                        写真をタップして拡大後、画像を長押しで１枚ずつ直接保存できます
+                        <span className="text-green-700">【保存方法】</span>
+                        iPhone・Androidの方は写真をタップして拡大後、画像を長押しで１枚ずつ直接保存できます
                     </span>
                     <span className="text-stone-500 text-xs md:text-sm font-medium">※PC等からの一括保存（ZIP）はページ最下部のボタンをご利用ください</span>
                 </div>
@@ -535,6 +546,12 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                                 }}
                             />
 
+                            {savedPhotoIds.has(photo.id) && (
+                                <div className="absolute top-2 right-2 bg-green-600/95 text-white text-xs font-bold px-2 py-1 rounded-md shadow-md tracking-wider flex items-center gap-1 backdrop-blur-sm">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                    保存済
+                                </div>
+                            )}
                         </motion.div>
                     ))}
                 </div>
@@ -608,6 +625,7 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                                 src={photos[lightboxIndex].url}
                                 alt={`Photo ${lightboxIndex + 1}`}
                                 className="max-w-full max-h-full object-contain rounded-sm shadow-2xl"
+                                onContextMenu={() => markPhotoAsSaved(photos[lightboxIndex].id)}
                             />
                         </motion.div>
                         
