@@ -281,14 +281,16 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
     const [savedPhotoIds, setSavedPhotoIds] = useState<Set<string>>(new Set());
 
-    // 長押し（コンテキストメニュー）で保存された写真をマーク
+    // 長押し（コンテキストメニュー）で保存された写真をマーク（2秒遅延）
     const markPhotoAsSaved = (photoId: string) => {
-        setSavedPhotoIds(prev => {
-            if (prev.has(photoId)) return prev;
-            const next = new Set(prev);
-            next.add(photoId);
-            return next;
-        });
+        setTimeout(() => {
+            setSavedPhotoIds(prev => {
+                if (prev.has(photoId)) return prev;
+                const next = new Set(prev);
+                next.add(photoId);
+                return next;
+            });
+        }, 2000);
     };
 
     const handlePrevPhoto = (e?: React.MouseEvent) => {
