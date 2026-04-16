@@ -629,6 +629,13 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                             />
                         </motion.div>
                         
+                        {savedPhotoIds.has(photos[lightboxIndex].id) && (
+                            <div className="absolute bottom-16 left-0 right-0 mx-auto w-max z-20 flex items-center gap-1.5 bg-green-600/95 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg backdrop-blur-sm tracking-wider">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                保存済
+                            </div>
+                        )}
+
                         <div className="absolute bottom-6 left-0 right-0 text-center text-white/50 text-sm font-medium tracking-widest z-20">
                             {lightboxIndex + 1} / {photos.length}
                         </div>
