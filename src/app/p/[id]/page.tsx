@@ -547,9 +547,11 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                             />
 
                             {savedPhotoIds.has(photo.id) && (
-                                <div className="absolute top-2 right-2 bg-green-600/95 text-white text-xs font-bold px-2 py-1 rounded-md shadow-md tracking-wider flex items-center gap-1 backdrop-blur-sm">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                                    保存済
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <div className="bg-green-600/95 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg tracking-wider flex items-center gap-1.5 backdrop-blur-sm">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                        保存済
+                                    </div>
                                 </div>
                             )}
                         </motion.div>
@@ -630,9 +632,11 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
                         </motion.div>
                         
                         {savedPhotoIds.has(photos[lightboxIndex].id) && (
-                            <div className="absolute bottom-16 left-0 right-0 mx-auto w-max z-20 flex items-center gap-1.5 bg-green-600/95 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg backdrop-blur-sm tracking-wider">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                                保存済
+                            <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+                                <div className="flex items-center gap-2 bg-green-600/95 text-white text-lg font-bold px-6 py-3 rounded-full shadow-2xl backdrop-blur-sm tracking-wider">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                                    保存済
+                                </div>
                             </div>
                         )}
 
